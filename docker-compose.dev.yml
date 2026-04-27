@@ -1,0 +1,52 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: workzoradb
+      POSTGRES_USER: workzorauser
+      POSTGRES_PASSWORD: J95jACtFtadE
+    ports:
+      - "5432:5432"
+
+  user-service:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./user-service:/app
+    command: npm run start:dev
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - POSTGRES_HOST=postgres
+    depends_on:
+      - rabbitmq
+      - postgres
+
+  auth-service:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./auth-service:/app
+    command: npm run start:dev
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - POSTGRES_HOST=postgres
+    depends_on:
+      - rabbitmq
+      - postgres
+
+  api-gateway:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./api-gateway:/app
+    command: npm run start:dev
+    ports:
+      - "8000:8000"
+    depends_on:
+      - auth-service
