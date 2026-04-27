@@ -1,4 +1,4 @@
-name: Deploy Backend to VPS
+name: Deploy Backend to VPS (PM2)
 
 on:
   push:
@@ -20,27 +20,39 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "."
-          target: "/root/workzora-be"
+          target: "/var/www/workzora-be"
 
-      - name: Deploy on VPS
+      - name: Deploy on VPS via PM2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /root/workzora-be
+            # Переходимо в нову директорію
+            cd /var/www/workzora-be
 
+            # Створення .env файлів
             echo "${{ secrets.ROOT_ENV }}" > .env
             echo "${{ secrets.AUTH_ENV }}" > auth-service/.env
             echo "${{ secrets.USER_ENV }}" > user-service/.env
             echo "${{ secrets.PROJECT_ENV }}" > project-service/.env
             echo "${{ secrets.GATEWAY_ENV }}" > api-gateway/.env
 
-            cd auth-service && npm install && cd ..
-            cd user-service && npm install && cd ..
-            cd project-service && npm install && cd ..
-            cd api-gateway && npm install && cd ..
+            # Встановлення залежностей для кожного сервісу
+            # Використовуємо --prefix, щоб не "стрибати" по папках туди-сюди
+            npm install --prefix auth-service
+            npm install --prefix user-service
+            npm install --prefix project-service
+            npm install --prefix api-gateway
 
-            docker compose down
-            docker compose up -d --build
+            # Запуск або Перезапуск сервісів у PM2
+            # Очікується, що вхідний файл у кожному сервісі — index.js (зміни, якщо це не так)
+            
+            pm2 start auth-service/index.js --name "auth-service" || pm2 restart "auth-service"
+            pm2 start user-service/index.js --name "user-service" || pm2 restart "user-service"
+            pm2 start project-service/index.js --name "project-service" || pm2 restart "project-service"
+            pm2 start api-gateway/index.js --name "api-gateway" || pm2 restart "api-gateway"
+
+            # Зберігаємо список процесів, щоб вони піднімалися після ребуту сервера
+            pm2 save
