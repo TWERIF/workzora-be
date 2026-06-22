@@ -20,6 +20,7 @@ export const useCategoriesList = (
         queryKey: CATEGORY_KEYS.list(params),
         queryFn: () => findAll(params),
         placeholderData: (previousData) => previousData,
+        retry: false
     });
 };
 
@@ -28,6 +29,7 @@ export const useCategoryDetail = (id: string) => {
         queryKey: CATEGORY_KEYS.detail(id),
         queryFn: () => findOne(id),
         enabled: !!id,
+        retry: false
     });
 };
 

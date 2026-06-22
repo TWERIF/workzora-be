@@ -39,6 +39,7 @@ export const useAdminChats = (
         queryKey: CHAT_ADMIN_KEYS.list(params),
         queryFn: () => findAllChats(params),
         placeholderData: previous => previous,
+        retry: false
     });
 };
 
@@ -57,5 +58,6 @@ export const useAdminChatMessages = (
                 amount,
             }),
         enabled: !!chatId,
+        retry: false
     });
 };
