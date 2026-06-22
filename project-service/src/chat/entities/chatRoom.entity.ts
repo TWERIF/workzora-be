@@ -11,7 +11,7 @@ import {
 import { Message } from './message.entity';
 import { Project } from '../../projects/entities/project.entity';
 
-@Entity({ name: 'chat_rooms', schema: 'project' })
+@Entity({ name: 'chat_rooms', schema: 'chat_room' })
 export class ChatRoom {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

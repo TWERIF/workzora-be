@@ -24,7 +24,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
       this.onlineUsers.get(userId)?.add(client.id);
       this.server.emit('userPresence', { userId, isOnline: true });
-      console.log(`Клієнт підключився: ${client.id}`);
     } else {
       client.disconnect();
     }
@@ -37,7 +36,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (userSockets?.size == 0) {
         this.onlineUsers.delete(userId);
         this.server.emit('userPresence', { userId, isOnline: false });
-        console.log(`Клієнт відключився: ${client.id}`);
       }
     }
   }

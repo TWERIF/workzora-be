@@ -7,14 +7,24 @@ import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
 
 @Module({
   imports: [
-    // ОБОВ'ЯЗКОВИЙ БЛОК: Реєструємо клієнт, щоб контролер міг його знайти
     ClientsModule.register([
       {
-        name: 'PROJECT_SERVICE', // Ця назва має точно збігатися з @Inject('PROJECT_SERVICE')
+        name: 'PROJECT_SERVICE',
         transport: Transport.RMQ,
         options: {
-          urls: ['amqp://rabbitmq:5672'], // URL вашого RabbitMQ
-          queue: 'projects_queue', // Черга мікросервісу проєктів
+          urls: ['amqp://rabbitmq:5672'],
+          queue: 'projects_queue',
+          queueOptions: {
+            durable: true,
+          },
+        },
+      },
+      {
+        name: 'USERS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://rabbitmq:5672'],
+          queue: 'users_queue',
           queueOptions: {
             durable: true,
           },
@@ -25,4 +35,4 @@ import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
   controllers: [ChatController],
   providers: [ChatGateway, CloudinaryService],
 })
-export class ChatModule {}
+export class ChatModule { }

@@ -7,7 +7,7 @@ import {
 
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { FindByEmailDto } from './dto';
 import { User } from './entities/user.entity';
 
@@ -18,7 +18,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async createUser(data: Partial<User>): Promise<User> {
     const { email, password } = data;
@@ -51,6 +51,36 @@ export class UsersService {
 
   async get(id: string) {
     return await this.userRepository.findOne({ where: { id: id } });
+  }
+
+  async getMany(ids: string[]) {
+    return await this.userRepository.find({
+      where: {
+        id: In(ids),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        position: true,
+        ratings: true,
+        rates: true
+      }
+    });
+  }
+
+  async getUsersByIds(ids: string[]) {
+    if (!ids || ids.length === 0) return [];
+
+    const users = await this.getMany(ids);
+
+    return users.map(user => ({
+      id: user.id,
+      name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Користувач',
+      avatarUrl: user.avatarUrl || null,
+    }));
   }
 
   async updateUser(data: Partial<User>): Promise<{ success: true }> {

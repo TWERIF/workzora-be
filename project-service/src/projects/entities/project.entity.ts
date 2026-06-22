@@ -1,15 +1,19 @@
 import {
   Column,
-  Entity,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
+  Entity,
+  JoinTable,
+  ManyToMany,
   OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
+import { Category } from '../../categories/entities/category.entity';
 import { ChatRoom } from '../../chat/entities/chatRoom.entity';
 
 export enum ProjectStatus {
   OPEN = 'open',
+  AWAITING_PAYMENT = 'awaiting_payment',
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
   CLOSED = 'closed',
@@ -24,10 +28,24 @@ export class Project {
   title!: string;
 
   @Column({ type: 'text' })
-  desc!: string;
+  description!: string;
 
-  @Column({ type: 'simple-array', default: '' })
-  stack!: string[];
+  @ManyToMany(
+    () => Category,
+    (category) => category.projects,
+  )
+  @JoinTable({
+    name: 'project_categories',
+    joinColumn: {
+      name: 'project_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'category_id',
+      referencedColumnName: 'id',
+    },
+  })
+  categories!: Category[];
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   price!: number;

@@ -10,11 +10,21 @@ export class UsersController {
   constructor(
     private readonly userService: UsersService,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   @MessagePattern('users.get')
-  async get(id) {
-    return this.userService.get(id);
+  async get(@Payload() data: { id: string }) {
+    return this.userService.get(data.id);
+  }
+
+  @MessagePattern('users.getMany')
+  async getMany(@Payload() ids: string[]) {
+    return this.userService.getMany(ids);
+  }
+
+  @MessagePattern('users.getUsersByIds')
+  async getUsersByIds(@Payload() data: { ids: string[] }) {
+    return this.userService.getUsersByIds(data.ids);
   }
 
   @MessagePattern('users.create')

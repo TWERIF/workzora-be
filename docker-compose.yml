@@ -76,16 +76,17 @@ services:
     build: ./user-service
     container_name: user-service
     environment:
-      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - RABBITMQ_URL=${RABBITMQ_URL}
       - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=workzorauser
-      - POSTGRES_PASSWORD=J95jACtFtadE
-      - POSTGRES_DB=workzoradb
-      - SMTP_HOST=mailhog
-      - SMTP_PORT=1025
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -100,16 +101,17 @@ services:
     build: ./project-service
     container_name: project-service
     environment:
-      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - RABBITMQ_URL=${RABBITMQ_URL}
       - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=workzorauser
-      - POSTGRES_PASSWORD=J95jACtFtadE
-      - POSTGRES_DB=workzoradb
-      - SMTP_HOST=mailhog
-      - SMTP_PORT=1025
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -120,6 +122,54 @@ services:
       redis:
         condition: service_healthy
 
+  bids-service:
+    build: ./bids-service
+    container_name: bids-service
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  search-service:
+    build: ./search-service
+    container_name: search-service
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
@@ -130,6 +180,13 @@ services:
         condition: service_healthy
       auth-service:
         condition: service_started
+
+  admin-panel:
+      build: ./admin-panel 
+      ports:
+        - "3001:80" 
+      depends_on:
+        - api-gateway
 
   mailhog:
     image: mailhog/mailhog

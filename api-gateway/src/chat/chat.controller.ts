@@ -9,13 +9,13 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { ChatService } from './chat.service';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom, catchError } from 'rxjs';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { catchError, firstValueFrom } from 'rxjs';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
 
 @Controller('chat')
@@ -23,7 +23,33 @@ export class ChatController {
   constructor(
     @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
     private readonly cloudinaryService: CloudinaryService,
-  ) {}
+
+    @Inject('USERS_SERVICE') private readonly usersClient: ClientProxy,
+  ) { }
+  @Get()
+  async getChats(
+    @Req() req,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+
+    const userId = req.user.id;
+
+    return await firstValueFrom(
+      this.projectClient
+        .send('chat.getChats', { userId, page: pageNum, limit: limitNum })
+        .pipe(
+          catchError((error: unknown) => {
+            throw new HttpException(
+              'Chat service unavailable',
+              HttpStatus.SERVICE_UNAVAILABLE,
+            );
+          }),
+        ),
+    );
+  }
 
   @Get('project/:projectId')
   async findOrCreateChat(@Param('projectId') projectId: string) {
@@ -45,9 +71,10 @@ export class ChatController {
     @Query('amount') amount?: string,
   ) {
     const limit = amount ? parseInt(amount, 10) : 30;
-    return await firstValueFrom(
+
+    const messages = await firstValueFrom(
       this.projectClient
-        .send('chat.getMessages', { chatId, amount: limit })
+        .send<any[]>('chat.getMessages', { chatId, amount: limit })
         .pipe(
           catchError((error: unknown) => {
             throw new HttpException(
@@ -57,6 +84,39 @@ export class ChatController {
           }),
         ),
     );
+
+    if (!messages || messages.length === 0) {
+      return [];
+    }
+
+    const uniqueSenderIds = [...new Set(
+      messages
+        .map((m) => m.senderId)
+        .filter((id): id is string => typeof id === 'string')
+    )];
+
+    const usersMap = new Map<string, any>();
+
+    if (uniqueSenderIds.length > 0) {
+      try {
+        const users = await firstValueFrom(
+          this.usersClient.send('users.getUsersByIds', { ids: uniqueSenderIds })
+        );
+        users.forEach(u => usersMap.set(u.id, u));
+      } catch (error) {
+        console.error('Failed to fetch users for messages:', error);
+      }
+    }
+
+    return messages.map((item) => {
+      const sender = item.senderId ? usersMap.get(item.senderId) : null;
+
+      return {
+        ...item,
+        senderName: sender ? sender.name : 'Workzora',
+        senderAvatar: sender ? sender.avatarUrl : null,
+      };
+    });
   }
 
   @Post(':chatId/messages')
@@ -101,6 +161,30 @@ export class ChatController {
           );
         }),
       ),
+    );
+  }
+  @Get('all')
+  async getAllChats(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+
+    return await firstValueFrom(
+      this.projectClient
+        .send('chat.getAllChats', {
+          page: pageNum,
+          limit: limitNum,
+        })
+        .pipe(
+          catchError(() => {
+            throw new HttpException(
+              'Chat service unavailable',
+              HttpStatus.SERVICE_UNAVAILABLE,
+            );
+          }),
+        ),
     );
   }
 }

@@ -1,13 +1,11 @@
-// Переконайся, що шлях до DTO правильний
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { ChatService } from './chat.service';
 import { SaveMessageDto } from './dto/save-message-dto';
-// Переконайся, що шлях до DTO правильний
 
 @Controller()
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(private readonly chatService: ChatService) { }
 
   @MessagePattern('chat.findOrCreate')
   async findOrCreateChat(@Payload() data: { projectId: string }) {
@@ -29,5 +27,21 @@ export class ChatController {
   @MessagePattern('chat.markAsRead')
   async markAsRead(@Payload() data: { messageId: string }) {
     return await this.chatService.markAsReed(data.messageId);
+  }
+
+  @MessagePattern('chat.getChats')
+  async getChats(@Payload() data: { userId: string, page?: number; limit?: number }) {
+    return await this.chatService.getChats(data);
+  }
+
+  @MessagePattern('chat.getAllChats')
+  async getAllChats(
+    @Payload()
+    data: {
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    return await this.chatService.getAllChats(data);
   }
 }

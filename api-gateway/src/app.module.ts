@@ -6,9 +6,20 @@ import { AuthGuard } from './auth/guards/auth-guard';
 import { UsersModule } from './users/users.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ChatModule } from './chat/chat.module';
+import { CategoriesModule } from './categories/categories.module';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { BidsModule } from './bids/bids.module';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 1000 * 60,
+          limit: 100,
+        },
+      ],
+    }),
     ClientsModule.register([
       {
         name: 'AUTH_SERVICE',
@@ -25,8 +36,8 @@ import { ChatModule } from './chat/chat.module';
         name: 'USER_SERVICE',
         transport: Transport.RMQ,
         options: {
-          urls: ['amqp://rabbitmq:5672'], // Ваш URL до RabbitMQ
-          queue: 'users_queue', // Назва черги вашого мікросервісу Users
+          urls: ['amqp://rabbitmq:5672'],
+          queue: 'users_queue',
           queueOptions: {
             durable: true,
           },
@@ -37,6 +48,8 @@ import { ChatModule } from './chat/chat.module';
     UsersModule,
     ProjectsModule,
     ChatModule,
+    CategoriesModule,
+    BidsModule,
   ],
   providers: [
     {
@@ -45,4 +58,4 @@ import { ChatModule } from './chat/chat.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

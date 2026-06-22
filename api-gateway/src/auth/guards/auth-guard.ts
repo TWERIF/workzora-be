@@ -47,7 +47,7 @@ export class AuthGuard implements CanActivate {
       if (!fullUser) {
         throw new UnauthorizedException('User no longer exists');
       }
-
+      delete fullUser.password;
       request.user = fullUser;
       return true;
     } catch (e) {

@@ -25,6 +25,7 @@
     "@nestjs/microservices": "^11.1.9",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/platform-socket.io": "^11.1.19",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^11.1.19",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^0.10.9",

@@ -21,7 +21,7 @@ export class AuthController {
   constructor(
     @Inject('AUTH_SERVICE') private readonly authClient: ClientProxy,
     @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
-  ) {}
+  ) { }
 
   private setTokensToCookies(
     res: Response,
@@ -46,6 +46,21 @@ export class AuthController {
   @Get()
   async health() {
     return firstValueFrom(this.authClient.send('auth.health', {}));
+  }
+
+  @Public()
+  @Get("/seed")
+  async seed() {
+    const user = await firstValueFrom(
+      this.userClient.send('users.create', {
+        email: "admin@workzora.com",
+        password: "12345678",
+        firstName: "Workzora",
+        lastName: "Admin",
+        isActive: true
+      }),
+    );
+    return { success: true, userId: user.id };
   }
 
   @Public()

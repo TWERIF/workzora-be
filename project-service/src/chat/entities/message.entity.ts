@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { ChatRoom } from './chatRoom.entity';
 
-@Entity({ name: 'messages', schema: 'project' })
+@Entity({ name: 'messages', schema: 'message' })
 @Index(['chatId', 'createdAt'])
 export class Message {
   @PrimaryGeneratedColumn('uuid')
@@ -22,11 +22,11 @@ export class Message {
   @Column({ type: 'uuid' })
   chatId!: string;
 
-  @Column({ type: 'uuid' })
-  senderId!: string;
+  @Column({ type: 'uuid', nullable: true })
+  senderId!: string | null;
 
   @Column({ type: 'uuid', nullable: true })
-  receiverId!: string;
+  receiverId!: string | null;
 
   @Column({ type: 'uuid' })
   projectId!: string;
@@ -45,6 +45,9 @@ export class Message {
 
   @Column({ default: false })
   isDeleted!: boolean;
+
+  @Column({ default: false })
+  isSystemMessage!: boolean;
 
   @CreateDateColumn()
   createdAt!: Date;

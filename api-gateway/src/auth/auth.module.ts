@@ -7,7 +7,6 @@ import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
-    // 1. Об'єднуємо обидва сервіси в один виклик register()
     ClientsModule.register([
       {
         name: 'AUTH_SERVICE',
@@ -37,13 +36,11 @@ import { APP_GUARD } from '@nestjs/core';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: AuthGuard, // Це робить AuthGuard глобальним
+      useClass: AuthGuard, 
     },
-    // 2. Додаємо гарди в провайдери модуля
     AuthGuard,
     RolesGuard,
   ],
-  // 3. Експортуємо ClientsModule ТА самі гарди, щоб інші модулі їх бачили
   exports: [ClientsModule, AuthGuard, RolesGuard],
 })
 export class AuthModule {}
