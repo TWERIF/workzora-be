@@ -24,11 +24,11 @@ export class UsersController {
   constructor(
     @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
     private readonly cloudinaryService: CloudinaryService,
-  ) {}
+  ) { }
 
   @Public()
   @Get('getAll')
-  async getAll() {}
+  async getAll() { }
 
   @Public()
   @Get('profilesPreview')
@@ -48,6 +48,14 @@ export class UsersController {
       }),
     );
   }
+  @Public()
+  @Get('count')
+  async count() {
+    return await firstValueFrom(
+      this.userClient.send('users.count', {}),
+    );
+  }
+
   @Public()
   @Get('topClients')
   async getTopClients() {

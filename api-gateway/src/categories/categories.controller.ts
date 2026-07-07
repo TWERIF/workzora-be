@@ -15,6 +15,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { AuthGuard } from '../auth/guards/auth-guard';
 import { Roles, RolesGuard } from '../auth/guards/role-guard';
+import { Public } from '../auth/public.decorator';
 import type {
     CreateCategoriesDto,
     UpdateCategoriesDto,
@@ -30,6 +31,7 @@ export class CategoriesController {
     ) { }
 
     @Get()
+    @Public()
     async findAll(
         @Query('page') page = 1,
         @Query('limit') limit = 10,
@@ -42,6 +44,7 @@ export class CategoriesController {
         );
     }
     @Get('search')
+    @Public()
     async search(
         @Query('search') search: string,
         @Query('page') page = 1,
@@ -56,6 +59,7 @@ export class CategoriesController {
         );
     }
     @Get(':id')
+    @Public()
     async findOne(@Param('id') id: string) {
         return await firstValueFrom(
             this.projectClient.send('categories.findOne', { id }),

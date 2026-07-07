@@ -23,7 +23,13 @@ export class ProjectsService {
 
     private readonly chatService: ChatService
   ) { }
-
+  async count() {
+    try {
+      return this.projectRepository.count();
+    } catch (error) {
+      throw error;
+    }
+  }
   async create(dto: CreateProjectDto) {
     const categories = await this.categoryRepository.findBy({
       id: In(dto.categories),

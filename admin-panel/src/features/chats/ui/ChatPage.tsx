@@ -4,7 +4,7 @@ import { useAdminChatMessages } from "../model/useChats";
 import type { AdminChat } from "../model/types"; 
 
 interface ChatPageProps {
-    chat?: AdminChat;
+    chat?: AdminChat | null;
 }
 
 export default function ChatPage({

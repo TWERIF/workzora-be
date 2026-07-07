@@ -46,7 +46,7 @@ export function AuthForm() {
   })
 
   return (
-    <Card className="w-[40%] sm:max-w-md mx-auto mt-[20%] p-[20px]">
+    <Card className="w-[95%] max-w-md mx-auto mt-[15vh] md:mt-[20%] p-4 md:p-[20px]">
       <CardHeader>
         <CardTitle>Вхід в систему</CardTitle>
       </CardHeader>
@@ -57,7 +57,7 @@ export function AuthForm() {
             e.preventDefault()
             form.handleSubmit()
           }}
-          className="w-40%"
+          className="w-full"
         >
           <FieldGroup className="">
             <form.Field

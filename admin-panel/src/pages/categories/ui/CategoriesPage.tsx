@@ -36,7 +36,7 @@ export default function CategoriesPage() {
         return <div>Завантаження...</div>;
     }
     return (
-        <div className="px-[10%] py-[1%]">
+        <div className="px-4 md:px-[5%] lg:px-[10%] py-4 md:py-[1%]">
             <Manage
                 title="Категорії"
                 query=""

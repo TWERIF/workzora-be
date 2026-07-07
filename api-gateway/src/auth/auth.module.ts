@@ -30,17 +30,28 @@ import { APP_GUARD } from '@nestjs/core';
           },
         },
       },
+      {
+        name: 'KYC_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://rabbitmq:5672'],
+          queue: 'kyc_queue',
+          queueOptions: {
+            durable: true,
+          },
+        },
+      },
     ]),
   ],
   controllers: [AuthController],
   providers: [
     {
       provide: APP_GUARD,
-      useClass: AuthGuard, 
+      useClass: AuthGuard,
     },
     AuthGuard,
     RolesGuard,
   ],
   exports: [ClientsModule, AuthGuard, RolesGuard],
 })
-export class AuthModule {}
+export class AuthModule { }

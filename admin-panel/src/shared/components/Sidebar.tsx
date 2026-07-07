@@ -4,6 +4,8 @@ import {
   ListTree,
   Menu,
   MessageCircle,
+  NewspaperIcon,
+  VerifiedIcon,
   X
 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -18,6 +20,8 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { title: 'Категорії', path: '/categories', icon: ListTree },
   { title: 'Чати', path: '/chats', icon: MessageCircle },
+  { title: 'KYC', path: '/kyc', icon: VerifiedIcon },
+  { title: 'Новини', path: '/posts', icon: NewspaperIcon }
 ];
 
 const Sidebar: React.FC = () => {

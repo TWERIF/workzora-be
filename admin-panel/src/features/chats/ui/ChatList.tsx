@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface ChatListProps {
   chats: AdminChat[];
   selectedChatId?: string;
-  onSelect: (chat: AdminChat) => void;
+  onSelect: (chat: AdminChat | null) => void;
 
   page: number;
   total: number;
@@ -25,6 +25,14 @@ export default function ChatList({
 }: ChatListProps) {
   const totalPages = Math.ceil(total / limit);
 
+  const selectChat = (chat: AdminChat) => {
+    if (!(selectedChatId === chat.id)) {
+      onSelect(chat);
+    } else {
+      onSelect(null);
+    }
+  }
+
   return (
     <div className="h-full flex flex-col">
       <div className="border-b px-4 py-3 text-sm text-muted-foreground">
@@ -38,7 +46,7 @@ export default function ChatList({
               key={chat.id}
               chat={chat}
               selected={selectedChatId === chat.id}
-              onClick={() => onSelect(chat)}
+              onClick={() => selectChat(chat)}
             />
           ))}
         </div>

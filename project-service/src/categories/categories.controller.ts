@@ -8,23 +8,23 @@ export class CategoriesController {
     constructor(private readonly categoriesService: CategoriesService) { }
 
     @MessagePattern('categories.findOne')
-    findOne(@Payload() data: Id) {
-        return this.categoriesService.findOne(data.id);
+    async findOne(@Payload() data: Id) {
+        return await this.categoriesService.findOne(data.id);
     }
 
     @MessagePattern('categories.update')
-    update(@Payload() data: UpdateCategoriesDto) {
-        return this.categoriesService.update(data);
+    async update(@Payload() data: UpdateCategoriesDto) {
+        return await this.categoriesService.update(data);
     }
 
     @MessagePattern('categories.create')
-    create(@Payload() data: CreateCategoriesDto) {
-        return this.categoriesService.create(data);
+    async create(@Payload() data: CreateCategoriesDto) {
+        return await this.categoriesService.create(data);
     }
 
     @MessagePattern('categories.delete')
-    delete(@Payload() data: Id) {
-        return this.categoriesService.delete(data);
+    async delete(@Payload() data: Id) {
+        return await this.categoriesService.delete(data);
     }
 
     @MessagePattern('categories.findAll')

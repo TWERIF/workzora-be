@@ -9,6 +9,8 @@ import { ChatModule } from './chat/chat.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BidsModule } from './bids/bids.module';
+import { KycModule } from './kyc/kyc.module';
+import { PostsModule } from './posts/posts.module';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { BidsModule } from './bids/bids.module';
     ChatModule,
     CategoriesModule,
     BidsModule,
+    KycModule,
+    PostsModule,
   ],
   providers: [
     {

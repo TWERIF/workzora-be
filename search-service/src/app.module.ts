@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProjectsSearchModule } from './projects-search/projects-search.module';
+import { PostsSearchModule } from './posts-search/posts-search.module';
 
 @Module({
   imports: [
@@ -18,6 +19,8 @@ import { ProjectsSearchModule } from './projects-search/projects-search.module';
     }),
 
     ProjectsSearchModule,
+
+    PostsSearchModule,
   ],
   controllers: [],
   providers: [],

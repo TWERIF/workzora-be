@@ -16,6 +16,7 @@ export class AuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     @Inject('AUTH_SERVICE') private readonly authClient: ClientProxy,
     @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
+    @Inject('KYC_SERVICE') private readonly kycClient: ClientProxy,
   ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -47,8 +48,13 @@ export class AuthGuard implements CanActivate {
       if (!fullUser) {
         throw new UnauthorizedException('User no longer exists');
       }
+      console.log(fullUser)
+      const verification = await firstValueFrom(
+        this.kycClient.send('accout-verification.findOneByUserId', { userId: fullUser.id }),
+      );
+
       delete fullUser.password;
-      request.user = fullUser;
+      request.user = { ...fullUser, verification: verification ?? null };
       return true;
     } catch (e) {
       console.error('Guard Error:', e);

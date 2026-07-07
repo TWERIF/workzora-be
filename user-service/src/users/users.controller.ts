@@ -2,8 +2,8 @@ import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { ConfirmEmailDto, CreateUserDto, FindByEmailDto } from './dto';
 import { EmailService } from './email.service';
-import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
+import { UsersService } from './users.service';
 
 @Controller()
 export class UsersController {
@@ -15,6 +15,11 @@ export class UsersController {
   @MessagePattern('users.get')
   async get(@Payload() data: { id: string }) {
     return this.userService.get(data.id);
+  }
+
+  @MessagePattern('users.count')
+  async count() {
+    return this.userService.count();
   }
 
   @MessagePattern('users.getMany')

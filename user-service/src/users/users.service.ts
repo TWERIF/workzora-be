@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -48,9 +49,25 @@ export class UsersService {
 
     return this.userRepository.save(user);
   }
+  async count() {
+    try {
+      return this.userRepository.count();
+    } catch (error) {
+      throw error;
+    }
+  }
 
   async get(id: string) {
-    return await this.userRepository.findOne({ where: { id: id } });
+    try {
+      const user = await this.userRepository.findOne({ where: { id: id } });
+      if (!user) throw new BadRequestException();
+
+      const { password, ...result } = user;
+
+      return result;
+    } catch (error) {
+      throw error;
+    }
   }
 
   async getMany(ids: string[]) {

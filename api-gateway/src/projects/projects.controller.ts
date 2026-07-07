@@ -84,7 +84,13 @@ export class ProjectsController {
       );
     }
   }
-
+  @Public()
+  @Get('count')
+  async count() {
+    return await firstValueFrom(
+      this.projectClient.send('projects.count', {}),
+    );
+  }
   @Public()
   @Get('topProjects')
   async getTopProjects() {
@@ -174,7 +180,7 @@ export class ProjectsController {
     const project = await firstValueFrom(
       this.projectClient.send('projects.findOneProject', { id }),
     );
-    
+
     const client = await firstValueFrom(
       this.userClient.send('users.get', { id: project.clientId })
     )

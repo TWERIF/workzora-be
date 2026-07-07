@@ -13,6 +13,11 @@ export class ProjectsController {
     return this.projectsService.findOne(data.id);
   }
 
+  @MessagePattern('projects.count')
+  async count() {
+    return this.projectsService.count();
+  }
+
   @MessagePattern('projects.findManyByIds')
   findManyByIds(@Payload() data: { ids: string[] }) {
     return this.projectsService.findManyByIds(data.ids);

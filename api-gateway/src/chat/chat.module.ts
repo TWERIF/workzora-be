@@ -34,5 +34,6 @@ import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
   ],
   controllers: [ChatController],
   providers: [ChatGateway, CloudinaryService],
+  exports:[CloudinaryService]
 })
 export class ChatModule { }

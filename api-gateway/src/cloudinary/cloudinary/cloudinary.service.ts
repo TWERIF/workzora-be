@@ -60,6 +60,54 @@ export class CloudinaryService {
       streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
   }
+  async uploadDocument(file: Express.Multer.File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'workzora_kyc',
+          format: 'webp',
+        },
+        (
+          error: UploadApiErrorResponse | undefined,
+          result: UploadApiResponse | undefined,
+        ) => {
+          if (error || !result) {
+            console.error('Cloudinary error:', error);
+            return reject(
+              new InternalServerErrorException('Помилка завантаження файлу'),
+            );
+          }
+          resolve(result.secure_url);
+        },
+      );
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+  async uploadAnyDocument(file: Express.Multer.File, folder: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          format: 'webp',
+        },
+        (
+          error: UploadApiErrorResponse | undefined,
+          result: UploadApiResponse | undefined,
+        ) => {
+          if (error || !result) {
+            console.error('Cloudinary error:', error);
+            return reject(
+              new InternalServerErrorException('Помилка завантаження файлу'),
+            );
+          }
+          resolve(result.secure_url);
+        },
+      );
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
   async uploadAvatar(file: Express.Multer.File): Promise<string> {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
