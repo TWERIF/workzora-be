@@ -13,6 +13,9 @@ export class CreateUserDto {
   @IsString()
   lastName!: string;
 
+  @IsString()
+  username!: string;
+
   @IsBoolean()
   isActive!: boolean;
 }

@@ -3,20 +3,20 @@ import {
   Controller,
   Get,
   Inject,
+  Param,
   Post,
   Put,
   Query,
   Req,
-  Request,
   UploadedFile,
   UseGuards,
-  UseInterceptors,
+  UseInterceptors
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
-import { Public } from '../auth/public.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { firstValueFrom } from 'rxjs';
 import { AuthGuard } from '../auth/guards/auth-guard';
+import { Public } from '../auth/public.decorator';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
 
 @Controller('users')
@@ -82,5 +82,12 @@ export class UsersController {
     const avatarUrl = await this.cloudinaryService.uploadAvatar(file);
 
     return this.userClient.send('users.uploadAvatar', { userId, avatarUrl });
+  }
+  @Public()
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return await firstValueFrom(
+      this.userClient.send("users.get", { id })
+    )
   }
 }

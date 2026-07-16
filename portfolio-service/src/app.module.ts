@@ -26,7 +26,7 @@ import { PortfolioModule } from './portfolio/portfolio.module';
 
         await initDataSource.initialize();
 
-        const schemas = ['portfilio'];
+        const schemas = ['portfolio'];
         for (const schema of schemas) {
           await initDataSource.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
         }

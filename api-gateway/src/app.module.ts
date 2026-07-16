@@ -11,6 +11,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { BidsModule } from './bids/bids.module';
 import { KycModule } from './kyc/kyc.module';
 import { PostsModule } from './posts/posts.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { PostsModule } from './posts/posts.module';
     BidsModule,
     KycModule,
     PostsModule,
+    PortfolioModule,
   ],
   providers: [
     {

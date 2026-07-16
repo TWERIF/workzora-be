@@ -67,8 +67,6 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      mailhog:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -87,16 +85,37 @@ services:
       - SMTP_PORT=${SMTP_PORT}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
+      - SMTP_USER=${SMTP_USER}
     depends_on:
       rabbitmq:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      mailhog:
+      redis:
+        condition: service_healthy
+  portfolio-service:
+    build: ./portfolio-service
+    container_name: portfolio-service
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - SMTP_USER=${SMTP_USER}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-
   project-service:
     build: ./project-service
     container_name: project-service
@@ -116,8 +135,6 @@ services:
       rabbitmq:
         condition: service_healthy
       postgres:
-        condition: service_healthy
-      mailhog:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -141,8 +158,6 @@ services:
       rabbitmq:
         condition: service_healthy
       postgres:
-        condition: service_healthy
-      mailhog:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -182,8 +197,6 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      mailhog:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -207,7 +220,22 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      mailhog:
+      redis:
+        condition: service_healthy
+
+  email-service:
+    build: ./email-service
+    container_name: email-service
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - SENDPULSE_SECRET=${SENDPULSE_SECRET}
+      - SENDPULSE_CLIENTID=${SENDPULSE_CLIENTID}
+      - SMTP_USER=${SMTP_USER}
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -228,17 +256,6 @@ services:
         - "3001:80" 
       depends_on:
         - api-gateway
-
-  mailhog:
-    image: mailhog/mailhog
-    container_name: mailhog
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    healthcheck:
-      test: [ "CMD", "nc", "-z", "localhost", "1025" ]
-      interval: 5s
-      retries: 5
 
   redis:
     image: redis:7
