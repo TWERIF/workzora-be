@@ -231,6 +231,10 @@ services:
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
+    environment:
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     ports:
       - "${API_PORT}:8000"
     depends_on:
