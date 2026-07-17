@@ -1,22 +1,5 @@
 version: "3.8"
 
-x-env: &env
-  env_file:
-    - .env
-
-x-deps-full: &deps-full
-  depends_on:
-    rabbitmq:
-      condition: service_healthy
-    postgres:
-      condition: service_healthy
-    redis:
-      condition: service_healthy
-
-x-node-build: &node-build
-  context: .
-  dockerfile: docker/Dockerfile
-
 services:
   rabbitmq:
     image: rabbitmq:3-management
@@ -34,13 +17,16 @@ services:
     image: postgres:16
     container_name: postgres
     restart: always
-    <<: *env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - auth_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: [ "CMD-SHELL", "pg_isready -U workzorauser -d workzoradb" ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -51,7 +37,9 @@ services:
     restart: always
     ports:
       - "5050:80"
-    <<: *env
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,76 +48,160 @@ services:
       - ./pgadmin/servers.json:/pgadmin4/servers.json
 
   auth-service:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: auth-service
+    build: ./auth-service
     container_name: auth-service
-    <<: [ *env, *deps-full ]
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   user-service:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: user-service
+    build: ./user-service
     container_name: user-service
-    <<: [ *env, *deps-full ]
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   project-service:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: project-service
+    build: ./project-service
     container_name: project-service
-    <<: [ *env, *deps-full ]
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   bids-service:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: bids-service
+    build: ./bids-service
     container_name: bids-service
-    <<: [ *env, *deps-full ]
-
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
   search-service:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: search-service
+    build: ./search-service
     container_name: search-service
-    <<: [ *env, *deps-full ]
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
 
   kyc-service:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: kyc-service
+    build: ./kyc-service
     container_name: kyc-service
-    <<: [ *env, *deps-full ]
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   posts-service:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: posts-service
+    build: ./posts-service
     container_name: posts-service
-    <<: [ *env, *deps-full ]
-
-  email-service:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: email-service
-    container_name: email-service
-    <<: [ *env, *deps-full ]
-
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
   api-gateway:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: api-gateway
+    build: ./api-gateway
     container_name: api-gateway
-    <<: *env
     ports:
       - "${API_PORT}:8000"
     depends_on:
@@ -139,12 +211,11 @@ services:
         condition: service_started
 
   admin-panel:
-    build: ./admin-panel
-    container_name: admin-panel
-    ports:
-      - "3001:80"
-    depends_on:
-      - api-gateway
+      build: ./admin-panel 
+      ports:
+        - "3001:80" 
+      depends_on:
+        - api-gateway
 
   redis:
     image: redis:7
