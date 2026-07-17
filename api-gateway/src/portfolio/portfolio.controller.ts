@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { firstValueFrom } from 'rxjs';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
 import { CreatePortfolioDto, UpdatePortfolioDto } from './dto';
+import { Public } from '../auth/public.decorator';
 
 @Controller('portfolio')
 export class PortfolioController {
@@ -94,6 +95,7 @@ export class PortfolioController {
     }
 
     @Get()
+    @Public()
     async findAll(
         @Query('page', ParseIntPipe) page = 1,
         @Query('limit', ParseIntPipe) limit = 10,
