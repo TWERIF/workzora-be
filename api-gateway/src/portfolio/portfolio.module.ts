@@ -11,7 +11,7 @@ import { PortfolioController } from './portfolio.controller';
         transport: Transport.RMQ,
         options: {
           urls: ['amqp://rabbitmq:5672'],
-          queue: 'portfolio_queue',
+          queue: 'users_queue',
           queueOptions: {
             durable: true,
           },

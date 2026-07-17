@@ -75,14 +75,6 @@ services:
     container_name: user-service
     <<: [ *env, *deps-full ]
 
-  portfolio-service:
-    build:
-      <<: *node-build
-      args:
-        SERVICE_DIR: portfolio-service
-    container_name: portfolio-service
-    <<: [ *env, *deps-full ]
-
   project-service:
     build:
       <<: *node-build

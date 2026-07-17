@@ -26,7 +26,7 @@ import { UsersModule } from './users/users.module';
 
         await initDataSource.initialize();
 
-        const schemas = ['users'];
+        const schemas = ['users', 'portfolio'];
         for (const schema of schemas) {
           await initDataSource.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
         }
