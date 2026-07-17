@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { PortfolioModule } from './portfolio/portfolio.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -37,7 +38,7 @@ import { UsersModule } from './users/users.module';
         return await dataSource.initialize();
       },
     }),
-    UsersModule,
+    UsersModule, PortfolioModule
   ],
 })
 export class AppModule { }
