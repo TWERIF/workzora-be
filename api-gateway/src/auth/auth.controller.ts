@@ -54,6 +54,7 @@ export class AuthController {
     const user = await firstValueFrom(
       this.userClient.send('users.create', {
         email: "admin@workzora.com",
+        username: "adminworkzora",
         password: "12345678",
         firstName: "Workzora",
         lastName: "Admin",
