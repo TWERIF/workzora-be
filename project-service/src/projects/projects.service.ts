@@ -2,7 +2,8 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
-import { ClientProxy } from '@nestjs/microservices';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
 import { Id } from '../categories/dto';
 import { Category } from '../categories/entities/category.entity';
 import { ChatService } from '../chat/chat.service';
@@ -20,6 +21,9 @@ export class ProjectsService {
 
     @Inject('RABBIT_MQ_CLIENT')
     private readonly rabbitClient: ClientProxy,
+
+    @Inject('BIDS_SERVICE')
+    private readonly bidsClient: ClientProxy,
 
     private readonly chatService: ChatService
   ) { }
@@ -111,15 +115,92 @@ export class ProjectsService {
         throw new NotFoundException('Project not found');
       }
 
+      const wonBid = await firstValueFrom(
+        this.bidsClient.send("bids.getWonBid", { id: project.id, freelancerId: data.freelancerId })
+      )
+
+      if (!wonBid) {
+        throw new RpcException('Won bid not found for this project/freelancer');
+      }
+
+      project.time = wonBid.time;
       project.freelancerId = data.freelancerId;
       project.status = ProjectStatus.AWAITING_PAYMENT;
 
-      await this.projectRepository.save(project);
+       const saved = await this.projectRepository.save(project);
 
       const chat = await this.chatService.findOrCreateChat(data.id);
 
       const systemMessageContent = 'Вітаємо! Виконавець був обраний. Проект перейшов у статус очікування оплати. Будь ласка, зарезервуйте кошти для початку роботи.';
       await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
+
+      return saved;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async toInProgress(data: Id) {
+    try {
+      const project = await this.projectRepository.findOne({
+        where: { id: data.id },
+      });
+
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+
+      project.status = ProjectStatus.IN_PROGRESS;
+
+      await this.projectRepository.save(project);
+
+      const chat = await this.chatService.findOrCreateChat(data.id);
+
+      const systemMessageContent = 'Кошти зарезервовано, проект переведено до статусу виконання!';
+      await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
+
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async toInCompleted(data: Id) {
+    try {
+      const project = await this.projectRepository.findOne({
+        where: { id: data.id },
+      });
+
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+
+      project.status = ProjectStatus.COMPLETED;
+
+      await this.projectRepository.save(project);
+
+      const chat = await this.chatService.findOrCreateChat(data.id);
+
+      const systemMessageContent = 'Проект виконано, тепер можете обмінятися відгуками. Виконавець, очікуйте на оплату протягом 24 годин';
+      await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
+
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async toClosed(data: Id) {
+    try {
+      const project = await this.projectRepository.findOne({
+        where: { id: data.id },
+      });
+
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+
+      project.status = ProjectStatus.CLOSED;
+
+      await this.projectRepository.save(project);
 
     } catch (error) {
       throw error;

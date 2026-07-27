@@ -34,7 +34,7 @@ export default function PostsPage() {
 
 
     return (
-        <div className="px-4 md:px-[5%] lg:px-[10%] py-4">
+        <div className="mt-10 px-4 md:px-[5%] lg:px-[10%] py-4">
 
             <Manage
                 title="Пости"

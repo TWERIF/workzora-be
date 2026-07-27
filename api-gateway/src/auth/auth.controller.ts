@@ -53,11 +53,12 @@ export class AuthController {
   async seed() {
     const user = await firstValueFrom(
       this.userClient.send('users.create', {
-        email: "admin@workzora.com",
+        email: "admin@example.com",
         username: "adminworkzora",
         password: "12345678",
         firstName: "Workzora",
         lastName: "Admin",
+        role: "admin",
         isActive: true
       }),
     );

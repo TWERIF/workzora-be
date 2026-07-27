@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { CategoriesModule } from './categories/categories.module';
 import { ChatModule } from './chat/chat.module';
 import { ProjectsModule } from './projects/projects.module';
+import { PaymentDataModule } from './payment-data/payment-data.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ProjectsModule } from './projects/projects.module';
     ProjectsModule,
     ChatModule,
     CategoriesModule,
+    PaymentDataModule,
   ],
   controllers: [],
   providers: [],

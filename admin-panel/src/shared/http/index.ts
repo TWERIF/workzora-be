@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: `https://workzora.com/api`, //`http://localhost:8000`
+  baseURL: `http://localhost:8000`, //`https://workzora.com/api`
   timeout: 10000,
   withCredentials: true
 });

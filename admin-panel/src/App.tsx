@@ -5,6 +5,7 @@ import AuthPage from './pages/auth/ui/AuthPage';
 import CategoriesPage from './pages/categories/ui/CategoriesPage';
 import AdminChatsView from './pages/chats/AdminChatsView';
 import AdminKyc from './pages/kyc/ui/AdminKyc';
+import PaymentsPage from './pages/Payments/PaymentsPage';
 import PostsPage from './pages/posts/PostsPage';
 import Layout from './shared/components/Layout';
 
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/chats" element={<AdminChatsView />} />
           <Route path="/kyc" element={<AdminKyc />} />
+          <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/posts" element={<Outlet />}>
             <Route index element={<PostsPage />} />
             <Route path="create" element={<PostForm />} />

@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { BidsService } from './bids.service';
-import type { DeleteBid, Id } from './dto';
+import type { DeleteBid, Id, WonBid } from './dto';
 import { Bid } from './entities/bid.entity';
 
 @Controller('bids')
@@ -19,6 +19,11 @@ export class BidsController {
         return this.bidsService.getProjectBids(data);
     }
 
+    @MessagePattern('bids.getWonBid')
+    getWonBid(@Payload() data: WonBid) {
+        return this.bidsService.getWonBid(data);
+    }
+
     @MessagePattern('bids.getMyBids')
     getMyBids(@Payload() data: Id) {
         return this.bidsService.getMyBids(data);
@@ -31,7 +36,7 @@ export class BidsController {
 
     @MessagePattern('bids.create')
     create(@Payload() data: Partial<Bid>) {
-        
+
         return this.bidsService.create(data);
     }
 

@@ -22,7 +22,7 @@ export default function AdminKyc() {
     }
 
     return (
-        <div className="px-4 md:px-[5%] lg:px-[10%] py-4 md:py-[1%] h-[calc(100vh-100px)] grid grid-cols-[380px_1fr] border rounded-lg overflow-hidden">
+        <div className="mt-10 px-4 md:px-[5%] lg:px-[10%] py-4 md:py-[1%] h-[calc(100vh-100px)] grid grid-cols-[380px_1fr] border rounded-lg overflow-hidden">
             <KycList
                 verifications={data?.items ?? []}
                 selectedId={selectedVerification?.id}

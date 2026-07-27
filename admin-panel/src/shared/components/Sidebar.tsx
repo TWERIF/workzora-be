@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { logout } from '@/pages/auth/model/api';
+import { useAuth } from '@/pages/auth/model/useAuth';
 import {
+  HandIcon,
   ListTree,
   Menu,
   MessageCircle,
@@ -21,10 +23,12 @@ const menuItems: MenuItem[] = [
   { title: 'Категорії', path: '/categories', icon: ListTree },
   { title: 'Чати', path: '/chats', icon: MessageCircle },
   { title: 'KYC', path: '/kyc', icon: VerifiedIcon },
-  { title: 'Новини', path: '/posts', icon: NewspaperIcon }
+  { title: 'Новини', path: '/posts', icon: NewspaperIcon },
+  { title: "Оплата", path: '/payments', icon: HandIcon }
 ];
 
 const Sidebar: React.FC = () => {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
   const activeLink = "bg-blue-600 text-white shadow-lg shadow-blue-500/30";
@@ -116,10 +120,10 @@ const Sidebar: React.FC = () => {
 
             <div className="overflow-hidden">
               <p className="text-sm font-medium truncate">
-                Admin User
+                {user?.firstName + " " + user?.lastName}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                admin@example.com
+                {user?.email}
               </p>
             </div>
           </div>

@@ -12,6 +12,8 @@ import { BidsModule } from './bids/bids.module';
 import { KycModule } from './kyc/kyc.module';
 import { PostsModule } from './posts/posts.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { EscrowModule } from './escrow/escrow.module';
+import { PaymentDataModule } from './payment-data/payment-data.module';
 
 @Module({
   imports: [
@@ -56,6 +58,8 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     KycModule,
     PostsModule,
     PortfolioModule,
+    EscrowModule,
+    PaymentDataModule,
   ],
   providers: [
     {

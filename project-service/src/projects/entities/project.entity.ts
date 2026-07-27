@@ -56,6 +56,9 @@ export class Project {
   @Column({ type: 'uuid', nullable: true })
   freelancerId!: string;
 
+  @Column({ nullable: true })
+  time!: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 

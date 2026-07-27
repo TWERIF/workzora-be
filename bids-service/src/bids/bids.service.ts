@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DeleteBid, Id } from './dto';
+import { DeleteBid, Id, WonBid } from './dto';
 import { Bid } from './entities/bid.entity';
 
 @Injectable()
@@ -67,6 +67,13 @@ export class BidsService {
     async getMyBids(data: Id) {
         try {
             return await this.bidRepository.find({ where: { userId: data.id } });
+        } catch (error) {
+            throw error;
+        }
+    }
+    async getWonBid(data: WonBid) {
+        try {
+            return await this.bidRepository.findOne({ where: { projectId: data.id, userId: data.freelancerId } });
         } catch (error) {
             throw error;
         }

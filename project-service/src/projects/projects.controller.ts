@@ -65,8 +65,22 @@ export class ProjectsController {
       return { error: 'DB_ERROR' };
     }
   }
+
   @MessagePattern('projects.toAwaitingPayment')
   toAwaitingPayment(@Payload() data: AwaitingPaymentDto) {
     return this.projectsService.toAwaitingPayment(data);
+  }
+
+  @MessagePattern('projects.toInProgress')
+  toInProgress(@Payload() data: Id) {
+    return this.projectsService.toInProgress(data);
+  }
+  @MessagePattern('projects.toInCompleted')
+  toInCompleted(@Payload() data: Id) {
+    return this.projectsService.toInCompleted(data);
+  }
+  @MessagePattern('projects.toClosed')
+  toClosed(@Payload() data: Id) {
+    return this.projectsService.toClosed(data);
   }
 }

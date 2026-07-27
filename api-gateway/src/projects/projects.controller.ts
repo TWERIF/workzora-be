@@ -215,11 +215,44 @@ export class ProjectsController {
     @Body() body: AwaitingPaymentDto,
     @Req() req,
   ) {
+
+    return await firstValueFrom(
+      this.projectClient.send('projects.toAwaitingPayment', {
+        id,
+        freelancerId: body.freelancerId,
+      }),
+    );
+
+  }
+
+  @Roles('client')
+  @Patch(':id/completed')
+  async toInCompleted(
+    @Param('id') id: string,
+  ) {
     try {
       return await firstValueFrom(
-        this.projectClient.send('projects.toAwaitingPayment', {
-          id,
-          freelancerId: body.freelancerId,
+        this.projectClient.send('projects.toInCompleted', {
+          id
+        }),
+      );
+    } catch (e) {
+      throw new HttpException(
+        'Failed to process awaiting payment status',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Roles('admin')
+  @Patch(':id/closed')
+  async toClosed(
+    @Param('id') id: string,
+  ) {
+    try {
+      return await firstValueFrom(
+        this.projectClient.send('projects.toClosed', {
+          id
         }),
       );
     } catch (e) {

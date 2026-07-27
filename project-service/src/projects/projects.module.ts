@@ -22,6 +22,17 @@ import { ProjectsService } from './projects.service';
           },
         },
       },
+      {
+        name: 'BIDS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://rabbitmq:5672'],
+          queue: 'bids_queue',
+          queueOptions: {
+            durable: true,
+          },
+        },
+      },
     ]),
     ChatModule
   ],
