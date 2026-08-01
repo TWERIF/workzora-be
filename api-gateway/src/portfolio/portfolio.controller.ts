@@ -16,9 +16,9 @@ import {
 import { ClientProxy } from '@nestjs/microservices';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { firstValueFrom } from 'rxjs';
+import { Public } from '../auth/public.decorator';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
 import { CreatePortfolioDto, UpdatePortfolioDto } from './dto';
-import { Public } from '../auth/public.decorator';
 
 @Controller('portfolio')
 export class PortfolioController {
@@ -90,6 +90,17 @@ export class PortfolioController {
             this.portfolioClient.send(
                 'portfolio.findByUserId',
                 req.user.id,
+            ),
+        );
+    }
+
+
+    @Get(':id')
+    async getByUserId(@Param("id") id: string) {
+        return firstValueFrom(
+            this.portfolioClient.send(
+                'portfolio.findByUserId',
+                id,
             ),
         );
     }
