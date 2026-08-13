@@ -96,6 +96,7 @@ export class PortfolioController {
 
 
     @Get(':id')
+    @Public()
     async getByUserId(@Param("id") id: string) {
         return firstValueFrom(
             this.portfolioClient.send(

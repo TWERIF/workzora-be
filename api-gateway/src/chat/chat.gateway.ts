@@ -20,7 +20,6 @@ export class ChatGateway implements OnGatewayConnection {
   server!: Server;
 
   constructor(
-    // Інжектимо клієнт RabbitMQ для зв'язку з project-service
     @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
   ) {}
 
