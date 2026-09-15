@@ -7,7 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { Id } from '../categories/dto';
 import { Category } from '../categories/entities/category.entity';
 import { ChatService } from '../chat/chat.service';
-import { AwaitingPaymentDto, CreateProjectDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import { AwaitingPaymentDto, CreateProjectDto, FindProjectsDto, MyProjectsDto, UpdateProjectDto } from './dto';
 import { Project, ProjectStatus } from './entities/project.entity';
 
 @Injectable()
@@ -43,16 +43,16 @@ export class ProjectsService {
       title: dto.title,
       description: dto.description,
       categories,
+      tags: dto.tags ?? [],
       clientId: dto.clientId,
       price: dto.price,
     });
 
     await this.projectRepository.save(project);
-
     this.rabbitClient.emit('project.created', project);
-
     return project;
   }
+
   async update(dto: UpdateProjectDto) {
     const project = await this.projectRepository.findOne({
       where: { id: dto.id },
@@ -66,6 +66,10 @@ export class ProjectsService {
 
     if (dto.title !== undefined) {
       project.title = dto.title;
+    }
+
+    if (dto.tags !== undefined) {
+      project.tags = dto.tags;
     }
 
     if (dto.description !== undefined) {
@@ -127,7 +131,7 @@ export class ProjectsService {
       project.freelancerId = data.freelancerId;
       project.status = ProjectStatus.AWAITING_PAYMENT;
 
-       const saved = await this.projectRepository.save(project);
+      const saved = await this.projectRepository.save(project);
 
       const chat = await this.chatService.findOrCreateChat(data.id);
 
@@ -231,64 +235,96 @@ export class ProjectsService {
       relations: { categories: true },
     });
   }
+
+  private async attachProposalsCounts<T extends { id: string }>(
+    projects: T[],
+  ): Promise<(T & { proposalsCount: number })[]> {
+    if (!projects.length) return [];
+
+    const countsMap = await firstValueFrom(
+      this.bidsClient.send('bids.countByProjects', {
+        ids: projects.map((p) => p.id),
+      }),
+    );
+
+    return projects.map((p) => ({
+      ...p,
+      proposalsCount: countsMap[p.id] ?? 0,
+    }));
+  }
+
   async getProjects({
-    id,
-    role,
+    search,
+    categories,
+    tags,
+    minPrice,
+    maxPrice,
     page = 1,
     limit = 10,
-  }: {
-    id: string;
-    role: string;
-    page: number;
-    limit: number;
-  }) {
+  }: FindProjectsDto) {
     const skip = (page - 1) * limit;
-    let whereCondition = {};
+    console.log(`query started`);
 
-    if (role === 'client') {
-      whereCondition = { clientId: id };
-    } else if (role === 'freelancer') {
-      whereCondition = { freelancerId: id };
-    } else {
-      return { data: [], total: 0 };
+    const qb = this.projectRepository
+      .createQueryBuilder('project')
+      .leftJoinAndSelect('project.categories', 'category')
+      // .where('project.status = :status', { status: ProjectStatus.OPEN }); 
+
+    if (search) {
+      qb.andWhere(
+        '(project.title ILIKE :search OR project.description ILIKE :search)',
+        { search: `%${search}%` },
+      );
     }
 
-    const [projects, total] = await this.projectRepository.findAndCount({
-      where: whereCondition,
-      relations: {
-        categories: true,
-      },
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
+    if (categories?.length) {
+      qb.andWhere('category.id IN (:...categories)', { categories });
+    }
 
-    return {
-      data: projects,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    if (tags?.length) {
+      qb.andWhere('project.tags && :tags', { tags });
+    }
+
+    if (minPrice !== undefined) {
+      qb.andWhere('project.price >= :minPrice', { minPrice });
+    }
+
+    if (maxPrice !== undefined) {
+      qb.andWhere('project.price <= :maxPrice', { maxPrice });
+    }
+
+    qb.orderBy('project.createdAt', 'DESC').skip(skip).take(limit);
+
+    const [projects, total] = await qb.getManyAndCount();
+    const data = await this.attachProposalsCounts(projects);
+
+    console.log(`data: ${data}`)
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: string) {
-    return await this.projectRepository.findOne({
+    const project = await this.projectRepository.findOne({
       where: { id },
-      relations: {
-        categories: true,
-      },
+      relations: { categories: true },
     });
+    if (!project) return project;
+
+    const proposalsCount = await firstValueFrom(
+      this.bidsClient.send('bids.countByProject', { id }),
+    );
+
+    return { ...project, proposalsCount };
   }
 
   async getTopProjects() {
-    return await this.projectRepository.find({
+    const projects = await this.projectRepository.find({
       order: { views: 'DESC' },
-      relations: {
-        categories: true,
-      },
+      relations: { categories: true },
       take: 6,
     });
+
+    return this.attachProposalsCounts(projects);
   }
 
   async findMyProjects(data: MyProjectsDto) {

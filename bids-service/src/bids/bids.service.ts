@@ -78,4 +78,33 @@ export class BidsService {
             throw error;
         }
     }
+
+    async countByProject(data: Id) {
+        try {
+            return await this.bidRepository.count({ where: { projectId: data.id } });
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async countByProjects(data: { ids: string[] }) {
+        try {
+            if (!data.ids?.length) return {};
+
+            const rows = await this.bidRepository
+                .createQueryBuilder('bid')
+                .select('bid.projectId', 'projectId')
+                .addSelect('COUNT(*)', 'count')
+                .where('bid.projectId IN (:...ids)', { ids: data.ids })
+                .groupBy('bid.projectId')
+                .getRawMany();
+
+            return rows.reduce((acc, row) => {
+                acc[row.projectId] = Number(row.count);
+                return acc;
+            }, {} as Record<string, number>);
+        } catch (error) {
+            throw error;
+        }
+    }
 }

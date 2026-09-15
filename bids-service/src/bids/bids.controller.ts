@@ -24,6 +24,16 @@ export class BidsController {
         return this.bidsService.getWonBid(data);
     }
 
+    @MessagePattern('bids.countByProject')
+    countByProject(@Payload() data: Id) {
+        return this.bidsService.countByProject(data);
+    }
+
+    @MessagePattern('bids.countByProjects')
+    countByProjects(@Payload() data: { ids: string[] }) {
+        return this.bidsService.countByProjects(data);
+    }
+
     @MessagePattern('bids.getMyBids')
     getMyBids(@Payload() data: Id) {
         return this.bidsService.getMyBids(data);

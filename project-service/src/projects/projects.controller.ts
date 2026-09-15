@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import type { Id } from '../categories/dto';
-import type { AwaitingPaymentDto, CreateProjectDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import type { AwaitingPaymentDto, CreateProjectDto, FindProjectsDto, MyProjectsDto, UpdateProjectDto } from './dto';
 import { ProjectsService } from './projects.service';
 
 @Controller()
@@ -57,7 +57,7 @@ export class ProjectsController {
   }
   @MessagePattern('projects.findProjects')
   async getProjects(
-    @Payload() data: { id: string; role: string; page: number; limit: number },
+    @Payload() data: FindProjectsDto,
   ) {
     try {
       return await this.projectsService.getProjects(data);

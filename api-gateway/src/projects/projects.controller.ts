@@ -194,16 +194,31 @@ export class ProjectsController {
   }
 
   @Get()
-  async get(@Req() req, @Query('page') page = 1, @Query('limit') limit = 10) {
-    const user = req.user;
-    if (!user) return;
+  @Public()
+  async get(
+    @Req() req,
+    @Query('search') search?: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('categories') categories?: string,
+    @Query('tags') tags?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+  ) {
+    // const user = req.user;
+    // if (!user) return;
 
     return await firstValueFrom(
       this.projectClient.send('projects.findProjects', {
-        id: user.id,
-        role: user.role,
-        page,
-        limit,
+        // id: user.id,
+        // role: user.role,
+        search,
+        page: Number(page),
+        limit: Number(limit),
+        categories: categories ? categories.split(',') : undefined,
+        tags: tags ? tags.split(',') : undefined,
+        minPrice: minPrice ? Number(minPrice) : undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
       }),
     );
   }

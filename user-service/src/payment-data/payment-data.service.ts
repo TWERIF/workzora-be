@@ -66,18 +66,26 @@ export class PaymentDataService {
         console.log("saved");
         return this.stripSensitive(saved);
     }
-    async getPaymentData(userId: string): Promise<string> {
-        console.log(userId);
+    // async getPaymentData(userId: string): Promise<string> {
+    //     const existing = await this.paymentDataRepository.findOne({ where: { userId } });
+    //     if (!existing) {
+    //         throw new RpcException(`Payment data for user ${userId} not found`);
+    //     }
+    //     return this.crypto.decrypt(
+    //         existing.cardNumberEncrypted,
+    //         existing.cardNumberIv,
+    //         existing.cardNumberAuthTag,
+    //     );
+
+    // }
+
+    async getPaymentData(userId: string) {
         const existing = await this.paymentDataRepository.findOne({ where: { userId } });
-        console.log(existing);
         if (!existing) {
             throw new RpcException(`Payment data for user ${userId} not found`);
         }
-        return this.crypto.decrypt(
-            existing.cardNumberEncrypted,
-            existing.cardNumberIv,
-            existing.cardNumberAuthTag,
-        );
+        const { cardNumberEncrypted, cardNumberIv, cardNumberAuthTag, ...safe } = existing;
+        return safe; // id, userId, maskedCardNumber, createdAt, updatedAt
     }
 
     private mask(cardNumber: string): string {

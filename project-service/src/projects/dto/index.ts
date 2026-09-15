@@ -5,6 +5,7 @@ export interface CreateProjectDto {
   title: string;
   description: string;
   categories: string[];
+  tags?: string[];
   clientId: string;
   price: number;
 }
@@ -14,6 +15,7 @@ export interface Project {
   title: string;
   description: string;
   categories: any[];
+  tags: string[];
   price: number;
   clientId: string;
   client: any;
@@ -23,9 +25,18 @@ export interface Project {
   views: number;
   status: ProjectStatus;
   clientName: string;
+  proposalsCount?: number;
 }
 
 export interface UpdateProjectDto extends Partial<Project> { }
+
+export interface FindProjectsDto extends Pagination {
+  search?: string;
+  categories?: string[];
+  tags?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+}
 
 export interface Pagination {
   page: number;

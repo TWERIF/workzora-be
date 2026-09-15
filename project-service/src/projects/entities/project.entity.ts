@@ -62,6 +62,9 @@ export class Project {
   @CreateDateColumn()
   createdAt!: Date;
 
+  @Column('text', { array: true, default: () => "'{}'" })
+  tags!: string[];
+
   @UpdateDateColumn()
   updatedAt!: Date;
 
