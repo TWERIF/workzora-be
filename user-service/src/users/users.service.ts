@@ -12,6 +12,7 @@ import { In, Repository } from 'typeorm';
 import { FindByEmailDto } from './dto';
 import { User } from './entities/user.entity';
 
+import { PortfolioService } from '../portfolio/portfolio.service';
 import { UserRole } from '../types';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly portfolioService: PortfolioService,
   ) { }
 
   async createUser(data: Partial<User>): Promise<User> {
@@ -137,14 +139,27 @@ export class UsersService {
   }
 
   async findTopFreelancers() {
-    return this.userRepository.find({
+    const users = await this.userRepository.find({
       where: { role: UserRole.FREELANCER },
       order: {
         ratings: 'DESC',
       },
-      take: 5,
+      take: 6,
     });
+    const userIds = users.map((item) => item.id);
+    const portfolios = await this.portfolioService.findByUserIds(userIds);
+
+    console.log(portfolios);
+
+    return users.map((item) => {
+      return {
+        ...item,
+        portfolio: portfolios.find((el) => el.userId == item.id)
+      }
+    })
+
   }
+
   async getProfilesPreview({ role, amount }: { role: string; amount: any }) {
     return await this.userRepository.find({
       select: ['id', 'firstName', 'lastName', 'avatarUrl'],

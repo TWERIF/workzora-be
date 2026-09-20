@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { firstValueFrom } from 'rxjs';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreatePortfolio, UpdatePortfolio } from './dto';
 import { Portfolio } from './entities/portfolio.entity';
 
@@ -66,6 +66,24 @@ export class PortfolioService {
     async findByUserId(userId: string) {
         try {
             return await this.portfolioRepository.find({ where: { userId } })
+        } catch (error) {
+            throw error;
+        }
+    }
+    async getMany(ids: string[]) {
+        return await this.portfolioRepository.find({
+            where: {
+                userId: In(ids),
+            }
+        });
+    }
+    async findByUserIds(userIds: string[]) {
+        try {
+            if (!userIds || userIds.length === 0) return [];
+
+            const portfolios = await this.getMany(userIds);
+
+            return portfolios;
         } catch (error) {
             throw error;
         }

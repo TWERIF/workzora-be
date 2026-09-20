@@ -5,6 +5,7 @@ import { EmailService } from './email.service';
 import { User } from './entities/user.entity';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { PortfolioModule } from '../portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -21,7 +22,9 @@ import { UsersService } from './users.service';
           },
         },
       },
-    ])],
+    ]), 
+    PortfolioModule
+  ],
   providers: [UsersService, EmailService],
   exports: [UsersService],
   controllers: [UsersController],

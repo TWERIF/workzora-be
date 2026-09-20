@@ -47,4 +47,11 @@ export class PortfolioController {
     ) {
         return this.portfolioService.findByUserId(userId);
     }
+
+    @MessagePattern('portfolio.findByUserIds')
+    findByUserIds(
+        @Payload() userIds: string[],
+    ) {
+        return this.portfolioService.findByUserIds(userIds);
+    }
 }

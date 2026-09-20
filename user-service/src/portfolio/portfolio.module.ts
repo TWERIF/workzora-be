@@ -22,6 +22,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
   ]),
   ],
   providers: [PortfolioService],
-  controllers: [PortfolioController]
+  controllers: [PortfolioController],
+  exports: [PortfolioService]
 })
 export class PortfolioModule { }
