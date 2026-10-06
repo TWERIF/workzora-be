@@ -50,4 +50,10 @@ export interface MyProjectsDto extends Pagination {
 
 export interface AwaitingPaymentDto extends Id {
   freelancerId: string;
+  // taken from the authenticated user in the gateway
+  clientId: string;
+}
+
+export interface CompleteProjectDto extends Id {
+  clientId: string;
 }

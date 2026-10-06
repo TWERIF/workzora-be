@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
@@ -7,7 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { Id } from '../categories/dto';
 import { Category } from '../categories/entities/category.entity';
 import { ChatService } from '../chat/chat.service';
-import { AwaitingPaymentDto, CreateProjectDto, FindProjectsDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import { AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, MyProjectsDto, UpdateProjectDto } from './dto';
 import { Project, ProjectStatus } from './entities/project.entity';
 
 @Injectable()
@@ -24,6 +24,9 @@ export class ProjectsService {
 
     @Inject('BIDS_SERVICE')
     private readonly bidsClient: ClientProxy,
+
+    @Inject('ESCROW_SERVICE')
+    private readonly escrowClient: ClientProxy,
 
     private readonly chatService: ChatService
   ) { }
@@ -116,7 +119,13 @@ export class ProjectsService {
       });
 
       if (!project) {
-        throw new NotFoundException('Project not found');
+        throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
+      }
+      if (project.clientId !== data.clientId) {
+        throw new RpcException({ statusCode: HttpStatus.FORBIDDEN, message: 'Only the project owner can choose a freelancer' });
+      }
+      if (project.status !== ProjectStatus.OPEN) {
+        throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'A freelancer has already been chosen for this project' });
       }
 
       const wonBid = await firstValueFrom(
@@ -168,28 +177,39 @@ export class ProjectsService {
     }
   }
 
-  async toInCompleted(data: Id) {
-    try {
-      const project = await this.projectRepository.findOne({
-        where: { id: data.id },
-      });
+  async toInCompleted(data: CompleteProjectDto) {
+    const project = await this.projectRepository.findOne({
+      where: { id: data.id },
+    });
 
-      if (!project) {
-        throw new NotFoundException('Project not found');
-      }
-
-      project.status = ProjectStatus.COMPLETED;
-
-      await this.projectRepository.save(project);
-
-      const chat = await this.chatService.findOrCreateChat(data.id);
-
-      const systemMessageContent = 'Проект виконано, тепер можете обмінятися відгуками. Виконавець, очікуйте на оплату протягом 24 годин';
-      await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
-
-    } catch (error) {
-      throw error;
+    if (!project) {
+      throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
     }
+    if (project.clientId !== data.clientId) {
+      throw new RpcException({ statusCode: HttpStatus.FORBIDDEN, message: 'Only the project owner can complete it' });
+    }
+    if (project.status !== ProjectStatus.IN_PROGRESS) {
+      throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'Only a project in progress can be completed' });
+    }
+
+    // Release the escrow first: if moving money to the freelancer's balance fails,
+    // the project must stay in progress so the client can retry.
+    await firstValueFrom(
+      this.escrowClient.send('invoices.release', { projectId: project.id, clientId: data.clientId }),
+    ).catch((error) => {
+      // forward the escrow's { statusCode, message } instead of a generic internal error
+      throw new RpcException(error);
+    });
+
+    project.status = ProjectStatus.COMPLETED;
+    const saved = await this.projectRepository.save(project);
+
+    const chat = await this.chatService.findOrCreateChat(data.id);
+
+    const systemMessageContent = 'Проект виконано, кошти зараховано на баланс виконавця. Тепер можете обмінятися відгуками.';
+    await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
+
+    return saved;
   }
 
   async toClosed(data: Id) {
@@ -315,6 +335,22 @@ export class ProjectsService {
     );
 
     return { ...project, proposalsCount };
+  }
+
+  // Latest project of each client, used by the "Top clients" page as "last activity".
+  async findLastByClients(ids: string[]) {
+    if (!ids?.length) return {};
+
+    const projects = await this.projectRepository
+      .createQueryBuilder('project')
+      .distinctOn(['project.clientId'])
+      .where('project.clientId IN (:...ids)', { ids })
+      .orderBy('project.clientId')
+      .addOrderBy('project.createdAt', 'DESC')
+      .getMany();
+
+    const withCounts = await this.attachProposalsCounts(projects);
+    return Object.fromEntries(withCounts.map((p) => [p.clientId, p]));
   }
 
   async getTopProjects() {

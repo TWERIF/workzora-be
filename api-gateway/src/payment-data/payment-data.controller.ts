@@ -1,10 +1,12 @@
-import { Body, Controller, Get, HttpException, Inject, Param, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, Inject, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
-import { Roles } from '../auth/guards/role-guard';
+import { Roles, RolesGuard } from '../auth/guards/role-guard';
 import { CardDto } from './dto';
 
 @Controller('payment-data')
+// without the guard the @Roles('admin') below were not enforced
+@UseGuards(RolesGuard)
 export class PaymentDataController {
     constructor(
         @Inject('PAYMENT_DATA_SERVICE') private readonly paymentDataClient: ClientProxy,

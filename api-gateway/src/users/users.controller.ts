@@ -18,11 +18,14 @@ import { firstValueFrom } from 'rxjs';
 import { AuthGuard } from '../auth/guards/auth-guard';
 import { Public } from '../auth/public.decorator';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
+import { sendRpc } from '../common/rpc';
 
 @Controller('users')
 export class UsersController {
   constructor(
     @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
+    @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
+    @Inject('KYC_SERVICE') private readonly kycClient: ClientProxy,
     private readonly cloudinaryService: CloudinaryService,
   ) { }
 
@@ -44,7 +47,9 @@ export class UsersController {
 
     return await firstValueFrom(
       this.userClient.send('users.update', {
-        ...{ id, ...body },
+        // id from the token must win over any id sent in the body
+        ...body,
+        id,
       }),
     );
   }
@@ -63,6 +68,46 @@ export class UsersController {
       this.userClient.send('users.findTopClients', {}),
     );
   }
+  // "Top clients" page: paginated, searchable, filterable by rounded star rating.
+  // Clients without reviews get their latest project attached as "last activity".
+  @Public()
+  @Get('clients/top')
+  async getTopClientsPaged(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('search') search?: string,
+    @Query('ratings') ratings?: string,
+  ) {
+    const result = await sendRpc(this.userClient, 'users.findTopClientsPaged', {
+      page: Number(page),
+      limit: Number(limit),
+      search,
+      ratings: ratings ? ratings.split(',').map(Number) : undefined,
+    });
+
+    const withoutReview: string[] = result.data.filter((c) => !c.lastReview).map((c) => c.id);
+    const lastProjects = withoutReview.length
+      ? await sendRpc<Record<string, any>>(this.projectClient, 'projects.lastByClients', { ids: withoutReview })
+        .catch(() => ({}))
+      : {};
+
+    // KYC status drives the "verified" badge on the card
+    const verifications = await Promise.all(
+      result.data.map((client) =>
+        sendRpc(this.kycClient, 'accout-verification.findOneByUserId', { userId: client.id }).catch(() => null),
+      ),
+    );
+
+    return {
+      ...result,
+      data: result.data.map((client, i) => ({
+        ...client,
+        lastProject: lastProjects[client.id] ?? null,
+        isVerified: verifications[i]?.status === 'verified',
+      })),
+    };
+  }
+
   @Public()
   @Get('topFreelancers')
   async getTopFreelancers() {

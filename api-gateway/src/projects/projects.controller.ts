@@ -18,6 +18,7 @@ import { firstValueFrom } from 'rxjs';
 import { AuthGuard } from '../auth/guards/auth-guard';
 import { Roles, RolesGuard } from '../auth/guards/role-guard';
 import { Public } from '../auth/public.decorator';
+import { sendRpc } from '../common/rpc';
 import type { AwaitingPaymentDto } from './dto';
 
 @Controller('projects')
@@ -230,33 +231,24 @@ export class ProjectsController {
     @Body() body: AwaitingPaymentDto,
     @Req() req,
   ) {
-
-    return await firstValueFrom(
-      this.projectClient.send('projects.toAwaitingPayment', {
-        id,
-        freelancerId: body.freelancerId,
-      }),
-    );
-
+    return sendRpc(this.projectClient, 'projects.toAwaitingPayment', {
+      id,
+      freelancerId: body.freelancerId,
+      clientId: req.user.id,
+    });
   }
 
   @Roles('client')
   @Patch(':id/completed')
+  // Completing the project also releases the escrow to the freelancer's wallet balance.
   async toInCompleted(
     @Param('id') id: string,
+    @Req() req,
   ) {
-    try {
-      return await firstValueFrom(
-        this.projectClient.send('projects.toInCompleted', {
-          id
-        }),
-      );
-    } catch (e) {
-      throw new HttpException(
-        'Failed to process awaiting payment status',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    return sendRpc(this.projectClient, 'projects.toInCompleted', {
+      id,
+      clientId: req.user.id,
+    });
   }
 
   @Roles('admin')

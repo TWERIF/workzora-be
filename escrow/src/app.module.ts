@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { InvoicesModule } from './invoices/invoices.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 
         await initDataSource.initialize();
 
-        const schemas = ['invoice'];
+        const schemas = ['invoice', 'wallet'];
         for (const schema of schemas) {
           await initDataSource.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
         }
@@ -39,6 +40,7 @@ import { InvoicesModule } from './invoices/invoices.module';
     }),
 
     InvoicesModule,
+    WalletModule,
   ],
   controllers: [],
   providers: [],

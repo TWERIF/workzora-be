@@ -23,6 +23,17 @@ import { ProjectsService } from './projects.service';
         },
       },
       {
+        name: 'ESCROW_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://rabbitmq:5672'],
+          queue: 'escrow_queue',
+          queueOptions: {
+            durable: true,
+          },
+        },
+      },
+      {
         name: 'BIDS_SERVICE',
         transport: Transport.RMQ,
         options: {

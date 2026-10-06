@@ -19,6 +19,11 @@ export class PaymentDataController {
         return await this.paymentDataService.update(data);
     }
 
+    @MessagePattern('paymentData.getFullCardNumber')
+    async getFullCardNumber(@Payload() data: { userId: string }) {
+        return await this.paymentDataService.getFullCardNumber(data.userId);
+    }
+
     @MessagePattern('paymentData.getByUserId')
     async getPaymentData(@Payload() data: { userId: string }) {
         return await this.paymentDataService.getPaymentData(data.userId);

@@ -24,7 +24,7 @@ const menuItems: MenuItem[] = [
   { title: 'Чати', path: '/chats', icon: MessageCircle },
   { title: 'KYC', path: '/kyc', icon: VerifiedIcon },
   { title: 'Новини', path: '/posts', icon: NewspaperIcon },
-  { title: "Оплата", path: '/payments', icon: HandIcon }
+  { title: "Виплати", path: '/payments', icon: HandIcon }
 ];
 
 const Sidebar: React.FC = () => {

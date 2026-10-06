@@ -40,6 +40,11 @@ export class InvoicesController {
         return this.invoicesService.confirmByClient(data.invoiceId, data.clientId);
     }
 
+    @MessagePattern('invoices.release')
+    release(@Payload() data: { projectId: string; clientId: string }) {
+        return this.invoicesService.releaseByProject(data.projectId, data.clientId);
+    }
+
     @MessagePattern('invoices.dispute.open')
     openDispute(@Payload() data: OpenDisputeDto) {
         return this.invoicesService.openDispute(data.invoiceId, data.initiatorId, data.reason);
