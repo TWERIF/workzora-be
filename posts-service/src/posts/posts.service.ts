@@ -2,7 +2,6 @@ import {
     Inject,
     Injectable,
     Logger,
-    NotFoundException,
     OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -90,7 +89,7 @@ export class PostsService implements OnModuleInit {
             });
 
             if (!post) {
-                throw new NotFoundException('Post not found');
+                throw new RpcException({ statusCode: 404, message: 'Post not found' });
             }
             const titleChanged = !!dto.title && dto.title !== post.title;
             Object.assign(post, dto);

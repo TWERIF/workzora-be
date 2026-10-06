@@ -1,41 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import { AuthModule } from '../auth/auth.module';
-import { UsersModule } from '../users/users.module';
+import { ClientsModule } from '@nestjs/microservices';
+import { rmqClient } from '../common/rmq';
 import { ProjectsController } from './projects.controller';
 
 @Module({
-  imports: [
-    ClientsModule.register([
-      {
-        name: 'PROJECT_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://rabbitmq:5672'],
-          queue: 'projects_queue',
-          queueOptions: {
-            durable: true,
-          },
-        },
-      },
-    ]),
-    ClientsModule.register([
-      {
-        name: 'SEARCH_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://rabbitmq:5672'],
-          queue: 'search_queue',
-          queueOptions: {
-            durable: true,
-          },
-        },
-      },
-    ]),
-    AuthModule,
-    UsersModule,
-  ],
-
+  imports: [ClientsModule.register([rmqClient('PROJECT_SERVICE'), rmqClient('SEARCH_SERVICE'), rmqClient('USER_SERVICE')])],
   controllers: [ProjectsController],
 })
-export class ProjectsModule { }
+export class ProjectsModule {}

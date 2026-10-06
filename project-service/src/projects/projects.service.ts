@@ -1,13 +1,12 @@
-import { BadRequestException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
-import { Id } from '../categories/dto';
 import { Category } from '../categories/entities/category.entity';
 import { ChatService } from '../chat/chat.service';
-import { AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import { AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, IdDto, MyProjectsDto, UpdateProjectDto } from './dto';
 import { Project, ProjectStatus } from './entities/project.entity';
 
 @Injectable()
@@ -64,7 +63,7 @@ export class ProjectsService {
       },
     });
     if (!project) {
-      throw new NotFoundException('Project not found');
+      throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
     }
 
     if (dto.title !== undefined) {
@@ -85,7 +84,7 @@ export class ProjectsService {
       });
 
       if (categories.length !== dto.categories.length) {
-        throw new BadRequestException('One or more categories not found');
+        throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'One or more categories not found' });
       }
 
       project.categories = categories;
@@ -95,15 +94,6 @@ export class ProjectsService {
       project.price = dto.price;
     }
 
-    if (dto.clientId !== undefined) {
-      project.clientId = dto.clientId;
-    }
-    if (dto.status) {
-      project.status = dto.status;
-    }
-    if (dto.freelancerId) {
-      project.freelancerId = dto.freelancerId;
-    }
 
     await this.projectRepository.save(project);
 
@@ -153,14 +143,14 @@ export class ProjectsService {
     }
   }
 
-  async toInProgress(data: Id) {
+  async toInProgress(data: IdDto) {
     try {
       const project = await this.projectRepository.findOne({
         where: { id: data.id },
       });
 
       if (!project) {
-        throw new NotFoundException('Project not found');
+        throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
       }
 
       project.status = ProjectStatus.IN_PROGRESS;
@@ -212,14 +202,14 @@ export class ProjectsService {
     return saved;
   }
 
-  async toClosed(data: Id) {
+  async toClosed(data: IdDto) {
     try {
       const project = await this.projectRepository.findOne({
         where: { id: data.id },
       });
 
       if (!project) {
-        throw new NotFoundException('Project not found');
+        throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
       }
 
       project.status = ProjectStatus.CLOSED;
@@ -231,13 +221,13 @@ export class ProjectsService {
     }
   }
 
-  async delete({ id }: Id) {
+  async delete({ id }: IdDto) {
     const project = await this.projectRepository.findOne({
       where: { id },
     });
 
     if (!project) {
-      throw new NotFoundException('Project not found');
+      throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
     }
 
     await this.projectRepository.remove(project);

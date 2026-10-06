@@ -4,22 +4,38 @@ import {
   Get,
   Inject,
   Param,
+  ParseUUIDPipe,
   Post,
   Put,
   Query,
-  Req,
   UploadedFile,
-  UseGuards,
-  UseInterceptors
+  UseInterceptors,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { firstValueFrom } from 'rxjs';
-import { AuthGuard } from '../auth/guards/auth-guard';
+import { ApiBody, ApiConsumes, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/public.decorator';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
+import { CurrentUser } from '../common/auth-user';
+import type { AccountVerification, AuthUser } from '../common/auth-user';
+import { assertImage, IMAGE_UPLOAD_LIMIT } from '../common/files';
 import { sendRpc } from '../common/rpc';
+import { ProfilesPreviewQueryDto, TopClientsQueryDto, UpdateUserDto } from './dto';
 
+interface TopClient {
+  id: string;
+  lastReview: unknown;
+}
+
+interface Paginated<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+@ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(
@@ -27,120 +43,97 @@ export class UsersController {
     @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
     @Inject('KYC_SERVICE') private readonly kycClient: ClientProxy,
     private readonly cloudinaryService: CloudinaryService,
-  ) { }
-
-  @Public()
-  @Get('getAll')
-  async getAll() { }
+  ) {}
 
   @Public()
   @Get('profilesPreview')
-  async getPreview(@Query() query: { role: string; amount: number }) {
-    return await firstValueFrom(
-      this.userClient.send('users.getProfilesPreview', query),
-    );
+  @ApiOperation({ summary: 'Short profiles for the home page' })
+  getPreview(@Query() query: ProfilesPreviewQueryDto) {
+    return sendRpc(this.userClient, 'users.getProfilesPreview', query);
   }
 
-  // client <-> freelancer, once per 7 days and only without running deals
   @Post('switch-role')
-  async switchRole(@Req() req: Request) {
-    const userId = (req as any).user.id;
-    const deals = await sendRpc<{ total: number }>(this.projectClient, 'projects.activeDeals', { userId });
-    return sendRpc(this.userClient, 'users.switchRole', { id: userId, activeDeals: deals.total });
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Switch between client and freelancer, once per 7 days' })
+  async switchRole(@CurrentUser() user: AuthUser) {
+    const deals = await sendRpc<{ total: number }>(this.projectClient, 'projects.activeDeals', { userId: user.id });
+    return sendRpc(this.userClient, 'users.switchRole', { id: user.id, activeDeals: deals.total });
   }
 
   @Put('update')
-  async updateUser(@Body() body: any, @Req() req: Request) {
-    const id = (req as any).user.id;
-
-    return await firstValueFrom(
-      this.userClient.send('users.update', {
-        // id from the token must win over any id sent in the body
-        ...body,
-        id,
-      }),
-    );
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Update own profile' })
+  updateUser(@Body() body: UpdateUserDto, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.userClient, 'users.update', { ...body, id: user.id });
   }
+
   @Public()
   @Get('count')
-  async count() {
-    return await firstValueFrom(
-      this.userClient.send('users.count', {}),
-    );
+  @ApiOperation({ summary: 'Number of registered users' })
+  count() {
+    return sendRpc<number>(this.userClient, 'users.count', {});
   }
 
   @Public()
   @Get('topClients')
-  async getTopClients() {
-    return await firstValueFrom(
-      this.userClient.send('users.findTopClients', {}),
-    );
+  @ApiOperation({ summary: 'Top 5 clients by rating' })
+  getTopClients() {
+    return sendRpc(this.userClient, 'users.findTopClients', {});
   }
-  // "Top clients" page: paginated, searchable, filterable by rounded star rating.
-  // Clients without reviews get their latest project attached as "last activity".
+
   @Public()
   @Get('clients/top')
-  async getTopClientsPaged(
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-    @Query('search') search?: string,
-    @Query('ratings') ratings?: string,
-  ) {
-    const result = await sendRpc(this.userClient, 'users.findTopClientsPaged', {
-      page: Number(page),
-      limit: Number(limit),
-      search,
-      ratings: ratings ? ratings.split(',').map(Number) : undefined,
-    });
+  @ApiOperation({ summary: 'Top clients page with search and rating filter' })
+  async getTopClientsPaged(@Query() query: TopClientsQueryDto) {
+    const result = await sendRpc<Paginated<TopClient>>(this.userClient, 'users.findTopClientsPaged', query);
 
-    const withoutReview: string[] = result.data.filter((c) => !c.lastReview).map((c) => c.id);
+    const withoutReview = result.data.filter((client) => !client.lastReview).map((client) => client.id);
     const lastProjects = withoutReview.length
-      ? await sendRpc<Record<string, any>>(this.projectClient, 'projects.lastByClients', { ids: withoutReview })
-        .catch(() => ({}))
+      ? await sendRpc<Record<string, unknown>>(this.projectClient, 'projects.lastByClients', { ids: withoutReview }).catch(
+          () => ({}) as Record<string, unknown>,
+        )
       : {};
 
-    // KYC status drives the "verified" badge on the card
     const verifications = await Promise.all(
       result.data.map((client) =>
-        sendRpc(this.kycClient, 'accout-verification.findOneByUserId', { userId: client.id }).catch(() => null),
+        sendRpc<AccountVerification | null>(this.kycClient, 'accout-verification.findOneByUserId', { userId: client.id }).catch(
+          () => null,
+        ),
       ),
     );
 
     return {
       ...result,
-      data: result.data.map((client, i) => ({
+      data: result.data.map((client, index) => ({
         ...client,
         lastProject: lastProjects[client.id] ?? null,
-        isVerified: verifications[i]?.status === 'verified',
+        isVerified: verifications[index]?.status === 'verified',
       })),
     };
   }
 
   @Public()
   @Get('topFreelancers')
-  async getTopFreelancers() {
-    return await firstValueFrom(
-      this.userClient.send('users.findTopFreelancers', {}),
-    );
+  @ApiOperation({ summary: 'Top freelancers by rating' })
+  getTopFreelancers() {
+    return sendRpc(this.userClient, 'users.findTopFreelancers', {});
   }
-  @UseGuards(AuthGuard)
+
   @Post('avatar')
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadAvatar(
-    @UploadedFile() file: Express.Multer.File,
-    @Req() req: any,
-  ) {
-    const userId = req.user.id;
-
-    const avatarUrl = await this.cloudinaryService.uploadAvatar(file);
-
-    return this.userClient.send('users.uploadAvatar', { userId, avatarUrl });
+  @ApiCookieAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOperation({ summary: 'Upload own avatar' })
+  @UseInterceptors(FileInterceptor('file', { limits: IMAGE_UPLOAD_LIMIT }))
+  async uploadAvatar(@UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: AuthUser) {
+    const avatarUrl = await this.cloudinaryService.uploadAvatar(assertImage(file));
+    return sendRpc(this.userClient, 'users.uploadAvatar', { userId: user.id, avatarUrl });
   }
+
   @Public()
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return await firstValueFrom(
-      this.userClient.send("users.get", { id })
-    )
+  @ApiOperation({ summary: 'Public profile' })
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return sendRpc(this.userClient, 'users.getPublic', { id });
   }
 }

@@ -1,53 +1,49 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { BidsService } from './bids.service';
-import type { DeleteBid, Id, WonBid } from './dto';
-import { Bid } from './entities/bid.entity';
+import { CreateBidDto, DeleteBidDto, IdDto, ProjectIdsDto, UpdateBidDto, WonBidDto } from './dto';
 
-@Controller('bids')
+@Controller()
 export class BidsController {
-    constructor(
-        private readonly bidsService: BidsService
-    ) { }
-    @MessagePattern('bids.delete')
-    deleteBid(@Payload() data: DeleteBid) {
-        return this.bidsService.deleteBid(data);
-    }
+  constructor(private readonly bidsService: BidsService) {}
 
-    @MessagePattern('bids.getProjectBids')
-    getProjectBids(@Payload() data: Id) {
-        return this.bidsService.getProjectBids(data);
-    }
+  @MessagePattern('bids.create')
+  create(@Payload() data: CreateBidDto) {
+    return this.bidsService.create(data);
+  }
 
-    @MessagePattern('bids.getWonBid')
-    getWonBid(@Payload() data: WonBid) {
-        return this.bidsService.getWonBid(data);
-    }
+  @MessagePattern('bids.update')
+  update(@Payload() data: UpdateBidDto) {
+    return this.bidsService.update(data);
+  }
 
-    @MessagePattern('bids.countByProject')
-    countByProject(@Payload() data: Id) {
-        return this.bidsService.countByProject(data);
-    }
+  @MessagePattern('bids.delete')
+  deleteBid(@Payload() data: DeleteBidDto) {
+    return this.bidsService.deleteBid(data);
+  }
 
-    @MessagePattern('bids.countByProjects')
-    countByProjects(@Payload() data: { ids: string[] }) {
-        return this.bidsService.countByProjects(data);
-    }
+  @MessagePattern('bids.getProjectBids')
+  getProjectBids(@Payload() data: IdDto) {
+    return this.bidsService.getProjectBids(data);
+  }
 
-    @MessagePattern('bids.getMyBids')
-    getMyBids(@Payload() data: Id) {
-        return this.bidsService.getMyBids(data);
-    }
+  @MessagePattern('bids.getWonBid')
+  getWonBid(@Payload() data: WonBidDto) {
+    return this.bidsService.getWonBid(data);
+  }
 
-    @MessagePattern('bids.update')
-    update(@Payload() data: Partial<Bid>) {
-        return this.bidsService.update(data);
-    }
+  @MessagePattern('bids.countByProject')
+  countByProject(@Payload() data: IdDto) {
+    return this.bidsService.countByProject(data);
+  }
 
-    @MessagePattern('bids.create')
-    create(@Payload() data: Partial<Bid>) {
+  @MessagePattern('bids.countByProjects')
+  countByProjects(@Payload() data: ProjectIdsDto) {
+    return this.bidsService.countByProjects(data);
+  }
 
-        return this.bidsService.create(data);
-    }
-
+  @MessagePattern('bids.getMyBids')
+  getMyBids(@Payload() data: IdDto) {
+    return this.bidsService.getMyBids(data);
+  }
 }

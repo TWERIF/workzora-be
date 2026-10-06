@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { rpcValidationPipe } from './common/rpc-validation.pipe';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
-import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
@@ -15,10 +15,9 @@ async function bootstrap() {
       },
     },
   );
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(rpcValidationPipe);
 
   await app.listen();
-  console.log('Email microservice listening...');
 }
 
 bootstrap();

@@ -1,75 +1,59 @@
-import { Body, Controller, ForbiddenException, Get, HttpException, Inject, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpException, HttpStatus, Inject, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
+import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles, RolesGuard } from '../auth/guards/role-guard';
+import { CurrentUser, UserRole } from '../common/auth-user';
+import type { AuthUser } from '../common/auth-user';
+import { PaginationQueryDto } from '../common/pagination.dto';
+import { sendRpc } from '../common/rpc';
 import { CardDto } from './dto';
 
+@ApiTags('payment-data')
+@ApiCookieAuth()
 @Controller('payment-data')
-// without the guard the @Roles('admin') below were not enforced
 @UseGuards(RolesGuard)
 export class PaymentDataController {
-    constructor(
-        @Inject('PAYMENT_DATA_SERVICE') private readonly paymentDataClient: ClientProxy,
-        @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
-    ) { }
+  constructor(
+    @Inject('PAYMENT_DATA_SERVICE') private readonly paymentDataClient: ClientProxy,
+    @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
+  ) {}
 
-    @Roles("admin")
-    @Get("get-many")
-    async getMany(@Req() req, @Query('page') page = 1, @Query('limit') limit = 10) {
-        const user = req.user;
-        if (!user) return;
+  @Roles('admin')
+  @Get('get-many')
+  @ApiOperation({ summary: 'Project payments (admin)' })
+  getMany(@CurrentUser() user: AuthUser, @Query() query: PaginationQueryDto) {
+    return sendRpc(this.projectClient, 'payments.findMany', { id: user.id, role: user.role, ...query });
+  }
 
-        return await firstValueFrom(
-            this.projectClient.send("payments.findMany", {
-                id: user.id,
-                role: user.role,
-                page,
-                limit,
-            })
-        )
+  @Roles('admin')
+  @Get('get-one/:id')
+  @ApiOperation({ summary: 'Project payment (admin)' })
+  getOne(@Param('id', ParseUUIDPipe) id: string) {
+    return sendRpc(this.projectClient, 'payments.findOne', { id });
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Link a payout card' })
+  create(@Body() data: CardDto, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.paymentDataClient, 'paymentData.create', { ...data, userId: user.id });
+  }
+
+  @Put()
+  @ApiOperation({ summary: 'Replace the payout card' })
+  update(@Body() data: CardDto, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.paymentDataClient, 'paymentData.update', { ...data, userId: user.id });
+  }
+
+  @Get(':userId')
+  @ApiOperation({ summary: 'Masked payout card, own or any for an admin' })
+  async getPaymentData(@Param('userId', ParseUUIDPipe) userId: string, @CurrentUser() user: AuthUser) {
+    if (user.id !== userId && user.role !== UserRole.ADMIN) throw new ForbiddenException();
+
+    try {
+      return await sendRpc(this.paymentDataClient, 'paymentData.getByUserId', { userId });
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) return null;
+      throw error;
     }
-
-    @Roles("admin")
-    @Get("get-one/:id")
-    async getOne(@Param("id") id: string) {
-
-        return await firstValueFrom(
-            this.projectClient.send("payments.findOne", {
-                id
-            })
-        )
-    }
-
-    @Post()
-    async create(@Body() data: CardDto, @Req() req) {
-        try {
-            const userId = req.user.id;
-            return await firstValueFrom(
-                this.paymentDataClient.send('paymentData.create', { ...data, userId }),
-            );
-        } catch (err) {
-            throw new HttpException((err as Error).message ?? 'Payment create failed', 400);
-        }
-    }
-
-    @Put()
-    async update(@Body() data: CardDto, @Req() req) {
-        try {
-            const userId = req.user.id;
-            return await firstValueFrom(this.paymentDataClient.send('paymentData.update', { ...data, userId }));
-        } catch (err) {
-            throw new HttpException((err as Error).message ?? 'Payment update failed', 400);
-        }
-    }
-
-    // users see only their own card; admins any
-    @Get(':userId')
-    async getPaymentData(@Param('userId') userId: string, @Req() req) {
-        if (req.user.id !== userId && req.user.role !== 'admin') {
-            throw new ForbiddenException();
-        }
-        return await firstValueFrom(
-            this.paymentDataClient.send('paymentData.getByUserId', { userId }),
-        );
-    }
+  }
 }

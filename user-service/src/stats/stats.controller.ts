@@ -1,24 +1,24 @@
 import { Controller } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
+import { StatsRangeDto, VisitDto } from './stats.dto';
 import { StatsService } from './stats.service';
-import type { StatsRange } from './stats.service';
 
 @Controller()
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}
 
   @EventPattern('stats.visit')
-  async recordVisit(@Payload() data: { visitorId: string }) {
+  async recordVisit(@Payload() data: VisitDto) {
     await this.statsService.recordVisit(data.visitorId);
   }
 
   @MessagePattern('stats.visits')
-  visits(@Payload() range: StatsRange) {
+  visits(@Payload() range: StatsRangeDto) {
     return this.statsService.visitStats(range);
   }
 
   @MessagePattern('stats.users')
-  users(@Payload() range: StatsRange) {
+  users(@Payload() range: StatsRangeDto) {
     return this.statsService.userStats(range);
   }
 }

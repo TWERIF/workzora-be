@@ -1,9 +1,14 @@
-import { IsString } from "class-validator";
+import { IsUUID, Matches } from 'class-validator';
 
 export class CardDto {
-    @IsString()
-    userId!: string;
+  @IsUUID()
+  userId!: string;
 
-    @IsString()
-    cardNumber!: string;
+  @Matches(/^\d{12,19}$/)
+  cardNumber!: string;
+}
+
+export class UserIdDto {
+  @IsUUID()
+  userId!: string;
 }

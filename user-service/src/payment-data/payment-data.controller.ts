@@ -1,31 +1,29 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
+import { CardDto, UserIdDto } from './dto';
 import { PaymentDataService } from './payment-data.service';
-import { CardDto } from './dto';
 
 @Controller()
 export class PaymentDataController {
-    constructor(private readonly paymentDataService: PaymentDataService) { }
+  constructor(private readonly paymentDataService: PaymentDataService) {}
 
-    @MessagePattern('paymentData.create')
-    async create(@Payload() data: CardDto) {
-        console.log("Got request")
-        return await this.paymentDataService.create(data);
-    }
+  @MessagePattern('paymentData.create')
+  create(@Payload() data: CardDto) {
+    return this.paymentDataService.create(data);
+  }
 
-    @MessagePattern('paymentData.update')
-    async update(@Payload() data: CardDto) {
-        console.log("Got request")
-        return await this.paymentDataService.update(data);
-    }
+  @MessagePattern('paymentData.update')
+  update(@Payload() data: CardDto) {
+    return this.paymentDataService.update(data);
+  }
 
-    @MessagePattern('paymentData.getFullCardNumber')
-    async getFullCardNumber(@Payload() data: { userId: string }) {
-        return await this.paymentDataService.getFullCardNumber(data.userId);
-    }
+  @MessagePattern('paymentData.getFullCardNumber')
+  getFullCardNumber(@Payload() data: UserIdDto) {
+    return this.paymentDataService.getFullCardNumber(data.userId);
+  }
 
-    @MessagePattern('paymentData.getByUserId')
-    async getPaymentData(@Payload() data: { userId: string }) {
-        return await this.paymentDataService.getPaymentData(data.userId);
-    }
+  @MessagePattern('paymentData.getByUserId')
+  getPaymentData(@Payload() data: UserIdDto) {
+    return this.paymentDataService.getPaymentData(data.userId);
+  }
 }

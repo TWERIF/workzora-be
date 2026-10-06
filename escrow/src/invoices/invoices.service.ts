@@ -88,6 +88,29 @@ export class InvoicesService {
         return invoice;
     }
 
+    async getForUser({ id, userId, isAdmin }: { id: string; userId: string; isAdmin: boolean }): Promise<Invoice> {
+        const invoice = await this.getById(id);
+        if (!isAdmin && invoice.clientId !== userId && invoice.freelancerId !== userId) {
+            throw rpcError(HttpStatus.FORBIDDEN, "Not a party of this escrow");
+        }
+        return invoice;
+    }
+
+    async getStatusForUser({ invoiceId, userId }: { invoiceId: string; userId: string }) {
+        const invoice = await this.getByMonobankInvoiceId(invoiceId);
+        if (invoice.clientId !== userId && invoice.freelancerId !== userId) {
+            throw rpcError(HttpStatus.FORBIDDEN, "Not a party of this escrow");
+        }
+        return this.getStatus(invoiceId);
+    }
+
+    async syncFromMonobank(monobankInvoiceId: string) {
+        await this.getByMonobankInvoiceId(monobankInvoiceId);
+        const { status } = await this.mono.checkStatus(monobankInvoiceId);
+        await this.handleStatusUpdate(monobankInvoiceId, status);
+        return { success: true };
+    }
+
     async getByProjectId(id: string): Promise<Invoice> {
         const invoice = await this.repo.findOne({ where: { projectId: id } });
         if (!invoice) throw rpcError(HttpStatus.NOT_FOUND, "Invoice not found");

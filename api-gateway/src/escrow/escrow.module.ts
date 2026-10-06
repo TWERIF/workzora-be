@@ -1,46 +1,13 @@
 import { Module } from '@nestjs/common';
+import { ClientsModule } from '@nestjs/microservices';
+import { rmqClient } from '../common/rmq';
 import { EscrowController } from './escrow.controller';
-import { ClientsModule, Transport } from '@nestjs/microservices';
 import { WalletController } from './wallet.controller';
 
 @Module({
   imports: [
-    ClientsModule.register([
-      {
-        name: 'INVOICES_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://rabbitmq:5672'],
-          queue: 'escrow_queue',
-          queueOptions: {
-            durable: true,
-          },
-        },
-      },
-      {
-        name: 'PROJECT_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://rabbitmq:5672'],
-          queue: 'projects_queue',
-          queueOptions: {
-            durable: true,
-          },
-        },
-      },
-      {
-        name: 'USER_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://rabbitmq:5672'],
-          queue: 'users_queue',
-          queueOptions: {
-            durable: true,
-          },
-        },
-      },
-    ]),
+    ClientsModule.register([rmqClient('INVOICES_SERVICE'), rmqClient('PROJECT_SERVICE'), rmqClient('USER_SERVICE')]),
   ],
-  controllers: [EscrowController, WalletController]
+  controllers: [EscrowController, WalletController],
 })
-export class EscrowModule { }
+export class EscrowModule {}
