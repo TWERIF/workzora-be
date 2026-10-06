@@ -80,31 +80,32 @@ export class EscrowController {
         } satisfies ConfirmEscrowDto);
     }
 
+    // the initiator is the logged-in user, never a value from the body
     @Post(':id/dispute')
     openDispute(
         @Param('id') id: string,
-        @Body() data: Omit<OpenDisputeDto, 'invoiceId'>,
+        @Body() data: Pick<OpenDisputeDto, 'reason'>,
+        @Req() req,
     ) {
-        return firstValueFrom(
-            this.invoicesClient.send('invoices.dispute.open', {
-                ...data,
-                invoiceId: id,
-            }),
-        );
+        return sendRpc(this.invoicesClient, 'invoices.dispute.open', {
+            reason: data?.reason,
+            initiatorId: req.user.id,
+            invoiceId: id,
+        });
     }
 
     @Roles('admin')
     @Post(':id/dispute/resolve')
     resolveDispute(
         @Param('id') id: string,
-        @Body() data: Omit<ResolveDisputeDto, 'invoiceId'>,
+        @Body() data: Omit<ResolveDisputeDto, 'invoiceId' | 'adminId'>,
+        @Req() req,
     ) {
-        return firstValueFrom(
-            this.invoicesClient.send('invoices.dispute.resolve', {
-                ...data,
-                invoiceId: id,
-            }),
-        );
+        return sendRpc(this.invoicesClient, 'invoices.dispute.resolve', {
+            ...data,
+            adminId: req.user.id,
+            invoiceId: id,
+        });
     }
 
     @Post('webhook/status')
