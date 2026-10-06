@@ -12,7 +12,6 @@ export class AuthService {
 
     const access_token = this.jwtService.sign(payload, { expiresIn: '12h' });
     const refresh_token = this.jwtService.sign(payload, { expiresIn: '30d' });
-    console.log(access_token);
     return { access_token, refresh_token, user: payload };
   }
 
@@ -47,7 +46,6 @@ export class AuthService {
 
   async verify(token: string) {
     try {
-      console.log(token);
       return this.jwtService.verify(token);
     } catch (err) {
       console.error('JWT Verify Error Detail:', err);

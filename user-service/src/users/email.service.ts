@@ -4,6 +4,10 @@ import { createClient } from 'redis';
 import { firstValueFrom } from 'rxjs';
 import { ConfirmEmailDto, FindByEmailDto } from './dto';
 
+const CODE_TTL_SECONDS = 120;
+const MAX_CODE_ATTEMPTS = 5;
+const VERIFIED_TTL_SECONDS = 60 * 60;
+
 @Injectable()
 export class EmailService {
     private client;
@@ -21,14 +25,33 @@ export class EmailService {
         this.client.connect().then(() => console.log('Redis connected'));
     }
     async saveCode(email: string, code: number) {
-        await this.client.setEx(`email:${email}`, 120, code.toString());
+        await this.client.setEx(`email:${email}`, CODE_TTL_SECONDS, code.toString());
+        await this.client.del(`email-attempts:${email}`);
     }
 
     async verifyCode(dto: ConfirmEmailDto) {
         const { code, email } = dto;
         const saved = await this.client.get(`email:${email}`);
         if (!saved) return false;
-        return { success: Boolean(saved === code.toString()) };
+
+        const success = saved === String(code);
+        if (success) {
+            await this.client.del([`email:${email}`, `email-attempts:${email}`]);
+            // registration reads this flag to activate the account
+            await this.client.setEx(`email-verified:${email}`, VERIFIED_TTL_SECONDS, '1');
+        } else {
+            // a 5-digit code must not be brute-forced: drop it after a few wrong tries
+            const attempts = await this.client.incr(`email-attempts:${email}`);
+            await this.client.expire(`email-attempts:${email}`, CODE_TTL_SECONDS);
+            if (attempts >= MAX_CODE_ATTEMPTS) {
+                await this.client.del([`email:${email}`, `email-attempts:${email}`]);
+            }
+        }
+        return { success };
+    }
+
+    async isEmailVerified(email: string): Promise<boolean> {
+        return (await this.client.get(`email-verified:${email}`)) === '1';
     }
     async confirmEmail(data: FindByEmailDto) {
         const { email } = data;

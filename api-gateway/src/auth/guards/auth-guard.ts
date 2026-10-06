@@ -48,7 +48,6 @@ export class AuthGuard implements CanActivate {
       if (!fullUser) {
         throw new UnauthorizedException('User no longer exists');
       }
-      console.log(fullUser)
       const verification = await firstValueFrom(
         this.kycClient.send('accout-verification.findOneByUserId', { userId: fullUser.id }),
       );
