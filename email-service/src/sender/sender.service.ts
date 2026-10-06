@@ -1,6 +1,15 @@
-import { HttpException, HttpStatus, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 import axios from 'axios';
 import { EmailData } from '../types';
+
+interface SendPulseToken {
+    access_token: string;
+    expires_in: number;
+}
+
+const errorDetails = (error: unknown) =>
+    axios.isAxiosError(error) ? { status: error.response?.status, body: error.response?.data ?? error.message } : { body: String(error) };
 
 @Injectable()
 export class SenderService {
@@ -10,7 +19,7 @@ export class SenderService {
     private cachedToken: string | null = null;
     private tokenExpiryTime: number | null = null;
 
-    private async getAccessToken(): Promise<string | null> {
+    private async getAccessToken(): Promise<string> {
         const currentTime = Date.now();
 
         if (this.cachedToken && this.tokenExpiryTime && currentTime < this.tokenExpiryTime - 60 * 1000) {
@@ -18,69 +27,44 @@ export class SenderService {
         }
 
         try {
-            const response = await axios.post(
+            const response = await axios.post<SendPulseToken>(
                 `${this.baseUrl}/oauth/access_token`,
                 {
-                    grant_type: "client_credentials",
+                    grant_type: 'client_credentials',
                     client_id: process.env.SENDPULSE_CLIENTID,
-                    client_secret: process.env.SENDPULSE_SECRET
+                    client_secret: process.env.SENDPULSE_SECRET,
                 },
-                {
-                    headers: { "Content-Type": "application/json" }
-                }
+                { headers: { 'Content-Type': 'application/json' } },
             );
 
-            const { access_token, expires_in } = response.data;
-
-            this.cachedToken = access_token;
-            this.tokenExpiryTime = currentTime + (expires_in * 1000);
-
+            this.cachedToken = response.data.access_token;
+            this.tokenExpiryTime = currentTime + response.data.expires_in * 1000;
             return this.cachedToken;
-        } catch (error: Error | any) {
-            const status = error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
-            const message = error.response?.data || "Не вдалося отримати токен SendPulse";
-            this.logger.error('Помилка отримання токена SendPulse', error.response?.data || error.message);
-            throw new HttpException(message, status);
+        } catch (error) {
+            this.logger.error('SendPulse token request failed', errorDetails(error));
+            throw new RpcException({ statusCode: HttpStatus.BAD_GATEWAY, message: 'Email provider is unavailable' });
         }
     }
 
     async send(data: EmailData) {
+        const token = await this.getAccessToken();
         try {
-            const token = await this.getAccessToken();
-            if (!token) throw new UnauthorizedException("Email token is invalid");
-            console.log(data)
             const result = await axios.post(
                 `${this.baseUrl}/smtp/emails`,
                 {
                     email: {
-                        html: Buffer.from(data.html || '').toString('base64'),
+                        html: Buffer.from(data.html).toString('base64'),
                         subject: data.subject,
-                        from: {
-                            name: data.from.name,
-                            email: data.from.email,
-                        },
-                        to: [
-                            {
-                                name: data.to.name,
-                                email: data.to.email,
-                            },
-                        ],
+                        from: { name: data.from.name, email: data.from.email },
+                        to: [{ name: data.to.name, email: data.to.email }],
                     },
                 },
-                {
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json"
-                    }
-                }
+                { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } },
             );
-
             return result.data;
-        } catch (error: Error | any) {
-            const status = error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
-            const message = error.response?.data || "Помилка під час відправлення листа";
-            this.logger.error('Помилка відправлення листа через SendPulse', error.response?.data || error.message);
-            throw new HttpException(message, status);
+        } catch (error) {
+            this.logger.error('SendPulse send failed', errorDetails(error));
+            throw new RpcException({ statusCode: HttpStatus.BAD_GATEWAY, message: 'Email was not sent' });
         }
     }
 }

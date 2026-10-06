@@ -216,13 +216,15 @@ export class PasswordResetRequestDto {
   locale?: string;
 }
 
-export class PasswordResetDto {
+export class PasswordResetCodeDto {
   @IsEmail()
   email!: string;
 
   @IsString()
   code!: string;
+}
 
+export class PasswordResetDto extends PasswordResetCodeDto {
   @IsString()
   password!: string;
 }

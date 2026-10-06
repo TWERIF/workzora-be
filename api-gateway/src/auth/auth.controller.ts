@@ -24,6 +24,7 @@ import {
   GoogleCallbackDto,
   LoginDto,
   RegisterDto,
+  ResetCodeDto,
   ResetPasswordDto,
   VerifyEmailDto,
 } from './dto';
@@ -45,6 +46,7 @@ const ACCESS_TOKEN_MAX_AGE = 12 * 60 * 60 * 1000;
 const REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 const STRICT_LIMIT = { default: { limit: 10, ttl: 60_000 } };
 
+const SESSION_ONLY_COOKIE = 'session_only';
 @ApiTags('auth')
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
@@ -54,15 +56,24 @@ export class AuthController {
     @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
   ) {}
 
-  private setTokensToCookies(res: Response, tokens: Pick<AuthTokens, 'access_token' | 'refresh_token'>) {
+  private setTokensToCookies(res: Response, tokens: Pick<AuthTokens, 'access_token' | 'refresh_token'>, remember = true) {
     const secure = process.env.NODE_ENV === 'production';
-    res.cookie('access_token', tokens.access_token, { httpOnly: true, secure, sameSite: 'lax', maxAge: ACCESS_TOKEN_MAX_AGE });
-    res.cookie('refresh_token', tokens.refresh_token, { httpOnly: true, secure, sameSite: 'lax', maxAge: REFRESH_TOKEN_MAX_AGE });
+    const base = { httpOnly: true, secure, sameSite: 'lax' as const };
+    res.cookie('access_token', tokens.access_token, remember ? { ...base, maxAge: ACCESS_TOKEN_MAX_AGE } : base);
+    res.cookie('refresh_token', tokens.refresh_token, remember ? { ...base, maxAge: REFRESH_TOKEN_MAX_AGE } : base);
+    if (remember) res.clearCookie(SESSION_ONLY_COOKIE);
+    else res.cookie(SESSION_ONLY_COOKIE, '1', base);
   }
 
-  private async issueTokens(res: Response, user: CreatedUser) {
+  private clearSession(res: Response) {
+    res.clearCookie('access_token');
+    res.clearCookie('refresh_token');
+    res.clearCookie(SESSION_ONLY_COOKIE);
+  }
+
+  private async issueTokens(res: Response, user: CreatedUser, remember = true) {
     const auth = await sendRpc<AuthTokens>(this.authClient, 'auth.login', user);
-    this.setTokensToCookies(res, auth);
+    this.setTokensToCookies(res, auth, remember);
     return auth;
   }
 
@@ -117,10 +128,11 @@ export class AuthController {
   @HttpCode(201)
   @ApiOperation({ summary: 'Sign in with email and password' })
   async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const user = await sendRpc<CreatedUser | null>(this.userClient, 'users.validateCredentials', body).catch(() => null);
+    const { remember, ...credentials } = body;
+    const user = await sendRpc<CreatedUser | null>(this.userClient, 'users.validateCredentials', credentials).catch(() => null);
     if (!user) throw new UnauthorizedException('Invalid email or password');
 
-    const auth = await this.issueTokens(res, user);
+    const auth = await this.issueTokens(res, user, remember ?? true);
     return { success: true, user: auth.user };
   }
 
@@ -135,11 +147,10 @@ export class AuthController {
 
     try {
       const auth = await sendRpc<AuthTokens>(this.authClient, 'auth.refresh', refreshToken);
-      this.setTokensToCookies(res, auth);
+      this.setTokensToCookies(res, auth, req.cookies?.[SESSION_ONLY_COOKIE] !== '1');
       return { success: true };
     } catch {
-      res.clearCookie('access_token');
-      res.clearCookie('refresh_token');
+      this.clearSession(res);
       throw new UnauthorizedException('Invalid or expired refresh token. Please login again.');
     }
   }
@@ -148,8 +159,7 @@ export class AuthController {
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Sign out' })
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('access_token');
-    res.clearCookie('refresh_token');
+    this.clearSession(res);
     return { success: true, message: 'Logged out successfully' };
   }
 
@@ -159,6 +169,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Send a password reset code' })
   forgotPassword(@Body() body: ForgotPasswordDto) {
     return sendRpc(this.userClient, 'users.requestPasswordReset', body);
+  }
+
+  @Public()
+  @Throttle(STRICT_LIMIT)
+  @Post('check-reset-code')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Check a password reset code without using it' })
+  checkResetCode(@Body() body: ResetCodeDto) {
+    return sendRpc<{ valid: boolean }>(this.userClient, 'users.checkPasswordResetCode', body);
   }
 
   @Public()
@@ -173,7 +192,7 @@ export class AuthController {
   @Throttle(STRICT_LIMIT)
   @Post('confirm-email')
   @ApiOperation({ summary: 'Send an email confirmation code' })
-  confirmEmail(@Body() body: EmailDto) {
+  confirmEmail(@Body() body: ForgotPasswordDto) {
     return sendRpc(this.userClient, 'users.confirmEmail', body);
   }
 

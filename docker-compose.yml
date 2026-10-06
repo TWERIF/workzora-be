@@ -240,6 +240,7 @@ services:
       - SENDPULSE_API_KEY=${SENDPULSE_API_KEY}
       - TOKEN_STORAGE=${TOKEN_STORAGE}
       - SMTP_USER=${SMTP_USER}
+      - FRONTEND_URL=${FRONTEND_URL}
     depends_on:
       rabbitmq:
         condition: service_healthy
