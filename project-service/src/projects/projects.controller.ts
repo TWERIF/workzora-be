@@ -13,6 +13,11 @@ export class ProjectsController {
     return this.projectsService.findOne(data.id);
   }
 
+  @MessagePattern('stats.projects')
+  stats(@Payload() range: { from: string; to: string }) {
+    return this.projectsService.stats(range);
+  }
+
   @MessagePattern('projects.count')
   async count() {
     return this.projectsService.count();

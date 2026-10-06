@@ -233,4 +233,32 @@ export class InvoicesService {
             await manager.getRepository(Invoice).save(invoice);
         });
     }
+
+    // Admin dashboard. Amounts are in kopecks. Commission counts as earned once the escrow
+    // was captured for the freelancer (CAPTURED / PAID_OUT); its day is the capture day (updatedAt).
+    async stats({ from, to }: { from: string; to: string }) {
+        const earned = [EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT].map(String);
+        const paid = [EscrowStatus.HELD, EscrowStatus.DISPUTED, EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT].map(String);
+        const day = `("updatedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Kyiv')::date`;
+
+        const byDay: { day: string; commission: string; volume: string }[] = await this.repo.query(
+            `SELECT to_char(${day}, 'YYYY-MM-DD') AS day, sum("commissionAmount") AS commission, sum(amount) AS volume
+             FROM invoice.invoice
+             WHERE status::text = ANY($1) AND ${day} BETWEEN $2 AND $3
+             GROUP BY 1 ORDER BY 1`,
+            [earned, from, to],
+        );
+        const [totals]: { commission: string | null; volume: string | null }[] = await this.repo.query(
+            `SELECT sum("commissionAmount") FILTER (WHERE status::text = ANY($1)) AS commission,
+                    sum(amount) FILTER (WHERE status::text = ANY($2)) AS volume
+             FROM invoice.invoice`,
+            [earned, paid],
+        );
+
+        return {
+            totalCommission: Number(totals?.commission ?? 0),
+            totalVolume: Number(totals?.volume ?? 0),
+            byDay: byDay.map((r) => ({ day: r.day, commission: Number(r.commission), volume: Number(r.volume) })),
+        };
+    }
 }

@@ -129,12 +129,7 @@ export class PostsController {
     async delete(
         @Param('id') id: string,
     ) {
-        return this.postsClient.send(
-            'posts.delete',
-            {
-                id,
-            },
-        );
+        return sendRpc(this.postsClient, 'posts.delete', { id });
     }
 
 

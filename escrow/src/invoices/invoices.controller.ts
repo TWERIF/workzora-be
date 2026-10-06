@@ -15,6 +15,11 @@ export class InvoicesController {
         private readonly invoicesService: InvoicesService
     ) { }
 
+    @MessagePattern('stats.earnings')
+    stats(@Payload() range: { from: string; to: string }) {
+        return this.invoicesService.stats(range);
+    }
+
     @MessagePattern('invoices.create')
     create(@Payload() data: CreateEscrowDto) {
         return this.invoicesService.createEscrow(data);
