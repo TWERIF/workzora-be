@@ -3,6 +3,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { ConfirmEmailDto, CreateUserDto, FindByEmailDto } from './dto';
 import { EmailService } from './email.service';
 import { User } from './entities/user.entity';
+import { UserRole } from '../types';
 import type { TopClientsQuery } from './users.service';
 import { UsersService } from './users.service';
 
@@ -51,6 +52,29 @@ export class UsersController {
   @MessagePattern('users.verifyCode')
   async verifyCode(data: ConfirmEmailDto) {
     return this.emailService.verifyCode(data);
+  }
+
+  @MessagePattern('users.validateCredentials')
+  async validateCredentials(data: { email: string; password: string }) {
+    return this.userService.validateCredentials(data);
+  }
+
+  // Public sign-up: only whitelisted fields are accepted, the role is limited to client/freelancer
+  // and the account is active only if the email code was confirmed on the server.
+  @MessagePattern('users.register')
+  async register(data: Partial<CreateUserDto> & { locale?: string }) {
+    const role = [UserRole.CLIENT, UserRole.FREELANCER].includes(data.role as UserRole) ? data.role : undefined;
+    const isActive = data.email ? await this.emailService.isEmailVerified(data.email) : false;
+
+    return this.userService.createUser({
+      email: data.email,
+      password: data.password,
+      firstName: data.firstName ?? '',
+      lastName: data.lastName ?? '',
+      username: data.username ?? '',
+      ...(role ? { role } : {}),
+      isActive,
+    });
   }
 
   @MessagePattern('users.findByEmail')

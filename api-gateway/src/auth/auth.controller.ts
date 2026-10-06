@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Inject,
+  NotFoundException,
   Post,
   Req,
   Res,
@@ -15,6 +16,7 @@ import type { Request, Response } from 'express';
 import { firstValueFrom } from 'rxjs';
 import { Public } from './public.decorator';
 import { AuthGuard } from './guards/auth-guard';
+import { sendRpc } from '../common/rpc';
 
 @Controller('auth')
 export class AuthController {
@@ -48,9 +50,11 @@ export class AuthController {
     return firstValueFrom(this.authClient.send('auth.health', {}));
   }
 
+  // Creates the local admin account. Disabled unless ALLOW_SEED=true, so it never runs in production.
   @Public()
   @Get("/seed")
   async seed() {
+    if (process.env.ALLOW_SEED !== 'true') throw new NotFoundException();
     const user = await firstValueFrom(
       this.userClient.send('users.create', {
         email: "admin@example.com",
@@ -68,9 +72,7 @@ export class AuthController {
   @Public()
   @Post('register')
   async register(@Body() body: any, @Res({ passthrough: true }) res: Response) {
-    const user = await firstValueFrom(
-      this.userClient.send('users.create', body),
-    );
+    const user = await sendRpc(this.userClient, 'users.register', body);
     const auth = await firstValueFrom(this.authClient.send('auth.login', user));
 
     this.setTokensToCookies(res, auth);
@@ -102,30 +104,20 @@ export class AuthController {
   @Public()
   @Post('login')
   async login(@Body() body: any, @Res({ passthrough: true }) res: Response) {
-    console.log('1. Login attempt for:', body.email); // ЛОГ 1
-
     const user = await firstValueFrom(
-      this.userClient.send('users.findByEmail', {
-        email: body.email,
+      this.userClient.send('users.validateCredentials', {
+        email: body?.email,
+        password: body?.password,
       }),
-    ).catch((err) => {
-      console.error('Error in users.validateUser:', err); // ЛОГ 2
-      return null;
-    });
+    ).catch(() => null);
 
     if (!user) {
-      console.log('2. User validation failed'); // ЛОГ 3
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    console.log('3. User validated, calling auth.login'); // ЛОГ 4
-
     const auth = await firstValueFrom(
       this.authClient.send('auth.login', user),
-    ).catch((err) => {
-      console.error('Error in auth.login:', err);
-      return null;
-    });
+    ).catch(() => null);
 
     if (!auth) throw new UnauthorizedException('Auth service failed');
 

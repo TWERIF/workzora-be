@@ -119,8 +119,6 @@ export class UsersService {
   }
 
   async updateUser(data: Partial<User>): Promise<{ success: true }> {
-    console.log('data:', data);
-
     const user = await this.userRepository.findOne({
       where: { id: data.id },
     });
@@ -134,6 +132,9 @@ export class UsersService {
     // Rating and review count are derived from reviews (see ReviewsService).
     delete data.ratings;
     delete data.rates;
+    // Password changes need their own flow (old password / email code), and activation is server-side only.
+    delete data.password;
+    delete data.isActive;
     // Users pick client/freelancer on the account-type page; admin can't be self-assigned.
     if (data.role !== undefined && ![UserRole.CLIENT, UserRole.FREELANCER].includes(data.role as UserRole)) {
       delete data.role;
@@ -152,6 +153,19 @@ export class UsersService {
 
   async findByEmail(data: FindByEmailDto): Promise<User | null> {
     return this.userRepository.findOne({ where: { email: data.email } });
+  }
+
+  // Returns the user without the password hash when the credentials match, otherwise null.
+  async validateCredentials(data: { email?: string; password?: string }): Promise<Omit<User, 'password' | 'setCreatedAt'> | null> {
+    if (!data?.email || !data?.password) return null;
+    const user = await this.userRepository.findOne({ where: { email: data.email } });
+    if (!user?.password) return null;
+
+    const matches = await bcrypt.compare(data.password, user.password);
+    if (!matches) return null;
+
+    const { password, ...result } = user;
+    return result;
   }
 
   async findTopClients() {
