@@ -132,6 +132,11 @@ export class UsersService implements OnModuleInit {
     );
   }
 
+  async setPassword(email: string, password: string) {
+    const hashed = await bcrypt.hash(password, 10);
+    await this.userRepository.update({ email }, { password: hashed });
+  }
+
   async switchRole({ id, activeDeals }: { id: string; activeDeals: number }) {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) throw new RpcException({ statusCode: 404, message: 'User not found' });
