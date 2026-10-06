@@ -15,6 +15,7 @@ import { PortfolioModule } from './portfolio/portfolio.module';
 import { EscrowModule } from './escrow/escrow.module';
 import { PaymentDataModule } from './payment-data/payment-data.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     EscrowModule,
     PaymentDataModule,
     ReviewsModule,
+    StatsModule,
   ],
   providers: [
     {

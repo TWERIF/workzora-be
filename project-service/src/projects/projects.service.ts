@@ -390,4 +390,24 @@ export class ProjectsService {
     };
 
   }
+
+  // Admin dashboard: projects created per day in the range plus the current status breakdown.
+  async stats({ from, to }: { from: string; to: string }) {
+    const byDay: { day: string; count: string }[] = await this.projectRepository.query(
+      `SELECT to_char(("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Kyiv')::date, 'YYYY-MM-DD') AS day, count(*) AS count
+       FROM project.projects
+       WHERE ("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Kyiv')::date BETWEEN $1 AND $2
+       GROUP BY 1 ORDER BY 1`,
+      [from, to],
+    );
+    const byStatus: { status: string; count: string }[] = await this.projectRepository.query(
+      `SELECT status, count(*) AS count FROM project.projects GROUP BY status`,
+    );
+
+    return {
+      total: byStatus.reduce((sum, r) => sum + Number(r.count), 0),
+      byStatus: Object.fromEntries(byStatus.map((r) => [r.status, Number(r.count)])),
+      byDay: byDay.map((r) => ({ day: r.day, count: Number(r.count) })),
+    };
+  }
 }

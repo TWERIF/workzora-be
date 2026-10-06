@@ -113,14 +113,16 @@ export class PostsService implements OnModuleInit {
             where: { id: In(ids) }
         });
     }
-    async delete(id: string): Promise<void> {
+    // returns a value: an RMQ reply without one makes the gateway fail with EmptyError
+    async delete(id: string): Promise<{ success: true }> {
         try {
             const result = await this.postsRepository.delete(id);
 
             if (!result.affected) {
-                throw new NotFoundException('Post not found');
+                throw new RpcException({ statusCode: 404, message: 'Post not found' });
             }
             this.searchClient.emit("post.deleted", id);
+            return { success: true };
         } catch (error) {
             throw error;
         }
