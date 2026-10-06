@@ -1,8 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEmail, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 
-const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+const PASSWORD_RULE = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const PASSWORD_MESSAGE = 'Password must be at least 8 characters with an uppercase letter, a digit and a special character';
 const LOCALES = ['en', 'uk'];
 
 export class LoginDto {
@@ -14,6 +15,11 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password!: string;
+
+  @ApiPropertyOptional({ description: 'Keep the session after the browser is closed' })
+  @IsOptional()
+  @IsBoolean()
+  remember?: boolean;
 }
 
 export class RegisterDto {
@@ -21,9 +27,9 @@ export class RegisterDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ description: 'At least 8 characters with a letter and a digit' })
+  @ApiProperty({ description: 'At least 8 characters with an uppercase letter, a digit and a special character' })
   @IsString()
-  @Matches(PASSWORD_RULE, { message: 'Password must be at least 8 characters and contain a letter and a digit' })
+  @Matches(PASSWORD_RULE, { message: PASSWORD_MESSAGE })
   password!: string;
 
   @ApiProperty()
@@ -81,15 +87,17 @@ export class ForgotPasswordDto extends EmailDto {
   locale?: string;
 }
 
-export class ResetPasswordDto extends EmailDto {
+export class ResetCodeDto extends EmailDto {
   @ApiProperty({ example: '123456' })
   @IsString()
   @Matches(/^\d{6}$/)
   code!: string;
+}
 
+export class ResetPasswordDto extends ResetCodeDto {
   @ApiProperty()
   @IsString()
   @MinLength(8)
-  @Matches(PASSWORD_RULE, { message: 'Password must be at least 8 characters and contain a letter and a digit' })
+  @Matches(PASSWORD_RULE, { message: PASSWORD_MESSAGE })
   password!: string;
 }

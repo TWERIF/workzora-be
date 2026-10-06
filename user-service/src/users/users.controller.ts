@@ -8,6 +8,7 @@ import {
   GoogleProfileDto,
   IdDto,
   IdsDto,
+  PasswordResetCodeDto,
   PasswordResetDto,
   PasswordResetRequestDto,
   ProfilesPreviewDto,
@@ -20,7 +21,7 @@ import {
 import { EmailService } from './email.service';
 import { UsersService } from './users.service';
 
-const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+const PASSWORD_RULE = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 @Controller()
 export class UsersController {
@@ -72,7 +73,7 @@ export class UsersController {
   }
 
   @MessagePattern('users.confirmEmail')
-  confirmEmail(@Payload() data: FindByEmailDto) {
+  confirmEmail(@Payload() data: PasswordResetRequestDto) {
     return this.emailService.confirmEmail(data);
   }
 
@@ -97,7 +98,7 @@ export class UsersController {
     if (!PASSWORD_RULE.test(data.password)) {
       throw new RpcException({
         statusCode: HttpStatus.BAD_REQUEST,
-        message: 'Password must be at least 8 characters and contain a letter and a digit',
+        message: 'Password must be at least 8 characters with an uppercase letter, a digit and a special character',
       });
     }
     const email = data.email.trim();
@@ -106,6 +107,11 @@ export class UsersController {
     }
     await this.userService.setPassword(email, data.password);
     return { success: true };
+  }
+
+  @MessagePattern('users.checkPasswordResetCode')
+  async checkPasswordResetCode(@Payload() data: PasswordResetCodeDto) {
+    return { valid: await this.emailService.checkPasswordResetCode(data.email.trim(), data.code) };
   }
 
   @MessagePattern('users.switchRole')
