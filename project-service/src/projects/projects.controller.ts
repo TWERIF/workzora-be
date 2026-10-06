@@ -18,6 +18,11 @@ export class ProjectsController {
     return this.projectsService.stats(range);
   }
 
+  @MessagePattern('projects.activeDeals')
+  activeDeals(@Payload() data: { userId: string }) {
+    return this.projectsService.countActiveDeals(data);
+  }
+
   @MessagePattern('projects.count')
   async count() {
     return this.projectsService.count();

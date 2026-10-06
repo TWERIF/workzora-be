@@ -4,7 +4,9 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -30,8 +32,11 @@ export interface TopClientsQuery {
   ratings?: number[];
 }
 
+export const ROLE_SWITCH_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -118,6 +123,43 @@ export class UsersService {
     }));
   }
 
+  // Accounts that existed before the roleSelected column have already chosen their role.
+  // Fresh sign-ups (last 24h) keep the chance to pick it on the account-type page.
+  async onModuleInit() {
+    await this.userRepository.query(
+      `UPDATE users.users SET "roleSelected" = true
+       WHERE "roleSelected" = false AND ("createdAt" IS NULL OR "createdAt" < now() - interval '1 day')`,
+    );
+  }
+
+  async switchRole({ id, activeDeals }: { id: string; activeDeals: number }) {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new RpcException({ statusCode: 404, message: 'User not found' });
+
+    if (![UserRole.CLIENT, UserRole.FREELANCER].includes(user.role as UserRole)) {
+      throw new RpcException({ statusCode: 403, message: 'This account type cannot be switched' });
+    }
+    if (activeDeals > 0) {
+      throw new RpcException({ statusCode: 409, message: 'Finish your active projects before switching the account type' });
+    }
+    if (user.roleSwitchedAt) {
+      const nextSwitchAt = new Date(user.roleSwitchedAt.getTime() + ROLE_SWITCH_DAYS * DAY_MS);
+      if (nextSwitchAt > new Date()) {
+        throw new RpcException({ statusCode: 429, message: `The account type can be switched again after ${nextSwitchAt.toISOString()}` });
+      }
+    }
+
+    const role = user.role === UserRole.CLIENT ? UserRole.FREELANCER : UserRole.CLIENT;
+    const roleSwitchedAt = new Date();
+    await this.userRepository.update(id, { role, roleSwitchedAt, roleSelected: true });
+
+    return {
+      role,
+      roleSwitchedAt,
+      nextSwitchAt: new Date(roleSwitchedAt.getTime() + ROLE_SWITCH_DAYS * DAY_MS),
+    };
+  }
+
   async updateUser(data: Partial<User>): Promise<{ success: true }> {
     const user = await this.userRepository.findOne({
       where: { id: data.id },
@@ -135,10 +177,16 @@ export class UsersService {
     // Password changes need their own flow (old password / email code), and activation is server-side only.
     delete data.password;
     delete data.isActive;
-    // Users pick client/freelancer on the account-type page; admin can't be self-assigned.
-    if (data.role !== undefined && ![UserRole.CLIENT, UserRole.FREELANCER].includes(data.role as UserRole)) {
-      delete data.role;
+    // The role is picked once on the account-type page after sign-up; later changes go through
+    // switchRole (once a week, no running deals). Admin can never be self-assigned.
+    if (data.role !== undefined) {
+      if (user.roleSelected || ![UserRole.CLIENT, UserRole.FREELANCER].includes(data.role as UserRole)) {
+        delete data.role;
+      } else {
+        data.roleSelected = true;
+      }
     }
+    delete (data as Partial<User>).roleSwitchedAt;
 
     Object.keys(data).forEach((key) => {
       if (data[key as keyof User] === undefined) {

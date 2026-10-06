@@ -93,6 +93,14 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   createdAt!: Date | null;
 
+  // set once the user picked client/freelancer on the account-type page after sign-up
+  @Column({ default: false })
+  roleSelected!: boolean;
+
+  // last client <-> freelancer switch; switching is allowed once per ROLE_SWITCH_DAYS
+  @Column({ type: 'timestamptz', nullable: true })
+  roleSwitchedAt!: Date | null;
+
   @BeforeInsert()
   setCreatedAt() {
     this.createdAt = new Date();

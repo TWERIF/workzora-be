@@ -54,6 +54,11 @@ export class UsersController {
     return this.emailService.verifyCode(data);
   }
 
+  @MessagePattern('users.switchRole')
+  async switchRole(data: { id: string; activeDeals: number }) {
+    return this.userService.switchRole(data);
+  }
+
   @MessagePattern('users.validateCredentials')
   async validateCredentials(data: { email: string; password: string }) {
     return this.userService.validateCredentials(data);
