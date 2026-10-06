@@ -1,5 +1,5 @@
 import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { MessagePattern, Payload, RpcException } from '@nestjs/microservices';
 import { ConfirmEmailDto, CreateUserDto, FindByEmailDto } from './dto';
 import { EmailService } from './email.service';
 import { User } from './entities/user.entity';
@@ -52,6 +52,34 @@ export class UsersController {
   @MessagePattern('users.verifyCode')
   async verifyCode(data: ConfirmEmailDto) {
     return this.emailService.verifyCode(data);
+  }
+
+  // Always answers success, so the form can't be used to find out which emails are registered.
+  @MessagePattern('users.requestPasswordReset')
+  async requestPasswordReset(data: { email?: string; locale?: string }) {
+    const email = data?.email?.trim();
+    if (email) {
+      const user = await this.userService.findByEmail({ email });
+      if (user) {
+        await this.emailService.sendPasswordResetCode(user.email, data.locale)
+          .catch((error) => console.error('Password reset email failed:', error?.message ?? error));
+      }
+    }
+    return { success: true };
+  }
+
+  @MessagePattern('users.resetPassword')
+  async resetPassword(data: { email?: string; code?: string; password?: string }) {
+    const email = data?.email?.trim();
+    const password = data?.password ?? '';
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      throw new RpcException({ statusCode: 400, message: 'Password must be at least 8 characters and contain a letter and a digit' });
+    }
+    if (!email || !data.code || !(await this.emailService.consumePasswordResetCode(email, data.code))) {
+      throw new RpcException({ statusCode: 400, message: 'Invalid or expired code' });
+    }
+    await this.userService.setPassword(email, password);
+    return { success: true };
   }
 
   @MessagePattern('users.switchRole')

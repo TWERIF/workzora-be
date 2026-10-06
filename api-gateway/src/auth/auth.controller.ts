@@ -162,6 +162,25 @@ export class AuthController {
   }
 
   @Public()
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: { email?: string; locale?: string }) {
+    return sendRpc(this.userClient, 'users.requestPasswordReset', {
+      email: body?.email,
+      locale: body?.locale,
+    });
+  }
+
+  @Public()
+  @Post('reset-password')
+  async resetPassword(@Body() body: { email?: string; code?: string; password?: string }) {
+    return sendRpc(this.userClient, 'users.resetPassword', {
+      email: body?.email,
+      code: body?.code,
+      password: body?.password,
+    });
+  }
+
+  @Public()
   @Post('confirm-email')
   async confirmEmail(@Body() body: any) {
     const code = await firstValueFrom(

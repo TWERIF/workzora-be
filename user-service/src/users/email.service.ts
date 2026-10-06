@@ -7,6 +7,7 @@ import { ConfirmEmailDto, FindByEmailDto } from './dto';
 const CODE_TTL_SECONDS = 120;
 const MAX_CODE_ATTEMPTS = 5;
 const VERIFIED_TTL_SECONDS = 60 * 60;
+const RESET_TTL_SECONDS = 15 * 60;
 
 @Injectable()
 export class EmailService {
@@ -74,5 +75,48 @@ export class EmailService {
         await this.saveCode(email, code);
 
         return { success: true };
+    }
+
+    // Password recovery: a 6-digit code mailed to the user, valid for 15 minutes, 5 attempts.
+    async sendPasswordResetCode(email: string, locale?: string) {
+        // at most one email per minute per address, so the form can't be used to spam someone
+        const throttled = await this.client.set(`pwd-reset-sent:${email}`, '1', { NX: true, EX: 60 });
+        if (throttled !== 'OK') return;
+
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        await this.client.setEx(`pwd-reset:${email}`, RESET_TTL_SECONDS, code);
+        await this.client.del(`pwd-reset-attempts:${email}`);
+
+        const uk = locale === 'uk';
+        const subject = uk ? 'Відновлення пароля Workzora' : 'Workzora password reset';
+        const html = uk
+            ? `<p>Ваш код для відновлення пароля:</p><h2>${code}</h2><p>Код дійсний 15 хвилин. Якщо ви не запитували відновлення, просто проігноруйте цей лист.</p>`
+            : `<p>Your password reset code:</p><h2>${code}</h2><p>The code is valid for 15 minutes. If you didn't request a reset, just ignore this email.</p>`;
+
+        await firstValueFrom(
+            this.emailService.send('send_email', {
+                to: { name: email, email },
+                from: { name: 'Workzora', email: process.env.SMTP_USER },
+                subject,
+                html,
+            }),
+        );
+    }
+
+    async consumePasswordResetCode(email: string, code: string): Promise<boolean> {
+        const saved = await this.client.get(`pwd-reset:${email}`);
+        if (!saved) return false;
+
+        if (saved === String(code).trim()) {
+            await this.client.del([`pwd-reset:${email}`, `pwd-reset-attempts:${email}`]);
+            return true;
+        }
+
+        const attempts = await this.client.incr(`pwd-reset-attempts:${email}`);
+        await this.client.expire(`pwd-reset-attempts:${email}`, RESET_TTL_SECONDS);
+        if (attempts >= MAX_CODE_ATTEMPTS) {
+            await this.client.del([`pwd-reset:${email}`, `pwd-reset-attempts:${email}`]);
+        }
+        return false;
     }
 }
