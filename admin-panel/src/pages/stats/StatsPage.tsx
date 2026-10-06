@@ -74,7 +74,7 @@ export default function StatsPage() {
                         Відвідувачі, користувачі, проєкти та дохід платформи
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     {RANGES.map((range) => (
                         <Button key={range} variant={range === days ? "default" : "outline"} onClick={() => setDays(range)}>
                             {range} днів
