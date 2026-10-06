@@ -1,14 +1,17 @@
-import { Body, Controller, Delete, Get, HttpException, HttpStatus, Inject, Param, Post, Put, Query, Req, UnauthorizedException, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, Inject, Param, Post, Put, Query, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { firstValueFrom } from 'rxjs';
+import { Roles, RolesGuard } from '../auth/guards/role-guard';
 import { Public } from '../auth/public.decorator';
+import { sendRpc } from '../common/rpc';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { GetPostsDto } from './dto/get-posts.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 
 @Controller('posts')
+@UseGuards(RolesGuard)
 export class PostsController {
     constructor(
         @Inject('POSTS_SERVICE')
@@ -19,14 +22,14 @@ export class PostsController {
 
     @Get('search')
     @Public()
-    async searchProjects(@Query('searchTerm') searchTerm: string) {
+    async searchPosts(@Query('searchTerm') searchTerm: string) {
         if (!searchTerm || searchTerm.trim() === '') {
             return [];
         }
 
         try {
             return await firstValueFrom(
-                this.searchClient.send('projects.search', { searchTerm }),
+                this.searchClient.send('posts.search', { searchTerm }),
             );
         } catch (error) {
             console.error('Search Service Error:', error);
@@ -39,6 +42,7 @@ export class PostsController {
 
 
     @Post()
+    @Roles('admin')
     @UseInterceptors(
         FileInterceptor('imageUrl')
     )
@@ -63,7 +67,27 @@ export class PostsController {
     }
 
 
+    // Images placed inside the article body by the admin editor
+    @Post('images')
+    @Roles('admin')
+    @UseInterceptors(
+        FileInterceptor('image', { limits: { fileSize: 10 * 1024 * 1024 } })
+    )
+    async uploadArticleImage(
+        @UploadedFile() file: Express.Multer.File
+    ) {
+        if (!file || !file.mimetype?.startsWith('image/')) {
+            throw new HttpException('Image file is required', HttpStatus.BAD_REQUEST);
+        }
+        const url = await this.cloudinaryService.uploadAnyDocument(
+            file, "workzora_posts"
+        );
+        return { url };
+    }
+
+
     @Put(':id')
+    @Roles('admin')
     @UseInterceptors(
         FileInterceptor('imageUrl')
     )
@@ -90,11 +114,6 @@ export class PostsController {
                 },
             );
         }
-        console.log({
-            id,
-            ...dto,
-            userId: user.id
-        })
         return this.postsClient.send(
             'posts.update',
             {
@@ -106,6 +125,7 @@ export class PostsController {
 
 
     @Delete(':id')
+    @Roles('admin')
     async delete(
         @Param('id') id: string,
     ) {
@@ -143,13 +163,8 @@ export class PostsController {
     @Get(':id')
     @Public()
     async getOne(
-        @Param('id') id: string,
+        @Param('id') idOrSlug: string,
     ) {
-        return this.postsClient.send(
-            'posts.getOne',
-            {
-                id,
-            },
-        );
+        return sendRpc(this.postsClient, 'posts.getOne', { id: idOrSlug });
     }
 }
