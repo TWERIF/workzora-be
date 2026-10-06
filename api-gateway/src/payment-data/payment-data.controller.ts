@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, Inject, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpException, Inject, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { Roles, RolesGuard } from '../auth/guards/role-guard';
@@ -62,8 +62,12 @@ export class PaymentDataController {
         }
     }
 
+    // users see only their own card; admins any
     @Get(':userId')
-    async getPaymentData(@Param('userId') userId: string) {
+    async getPaymentData(@Param('userId') userId: string, @Req() req) {
+        if (req.user.id !== userId && req.user.role !== 'admin') {
+            throw new ForbiddenException();
+        }
         return await firstValueFrom(
             this.paymentDataClient.send('paymentData.getByUserId', { userId }),
         );

@@ -3,7 +3,10 @@ import {
   Controller,
   Delete,
   Get,
+  BadRequestException,
+  ForbiddenException,
   HttpException,
+  NotFoundException,
   HttpStatus,
   Inject,
   Param,
@@ -137,6 +140,8 @@ export class ProjectsController {
     }
   }
 
+  // Only the owner may edit, and only the descriptive fields: status, freelancer and client
+  // change through the dedicated transitions. The price is fixed once a freelancer is chosen.
   @Roles('client')
   @Patch(':id')
   async updateProject(
@@ -144,36 +149,41 @@ export class ProjectsController {
     @Body() body,
     @Req() req,
   ) {
-    try {
-      return await firstValueFrom(
-        this.projectClient.send('projects.update', {
-          id,
-          ...body,
-        }),
-      );
-    } catch (e) {
-      throw new HttpException(
-        'Failed to update project',
-        HttpStatus.BAD_REQUEST,
-      );
+    const project = await this.getOwnedProject(id, req.user);
+    const { title, description, tags, categories, price } = body ?? {};
+
+    if (price !== undefined && Number(price) !== Number(project.price) && project.status !== 'open') {
+      throw new BadRequestException('The price cannot be changed after a freelancer was chosen');
     }
+
+    return sendRpc(this.projectClient, 'projects.update', {
+      id,
+      title,
+      description,
+      tags,
+      categories,
+      price,
+    });
   }
 
-  @Roles('client')
+  // Paid projects keep the money in escrow, so they can't be deleted.
+  @Roles('client', 'admin')
   @Delete(':id')
-  async deleteProject(@Param('id') id: string) {
-    try {
-      return await firstValueFrom(
-        this.projectClient.send('projects.delete', {
-          id,
-        }),
-      );
-    } catch (e) {
-      throw new HttpException(
-        'Failed to delete project',
-        HttpStatus.BAD_REQUEST,
-      );
+  async deleteProject(@Param('id') id: string, @Req() req) {
+    const project = await this.getOwnedProject(id, req.user);
+    if (!['open', 'awaiting_payment'].includes(project.status)) {
+      throw new BadRequestException('Only an unpaid project can be deleted');
     }
+    return sendRpc(this.projectClient, 'projects.delete', { id });
+  }
+
+  private async getOwnedProject(id: string, user: { id: string; role: string }) {
+    const project = await sendRpc(this.projectClient, 'projects.findOneProject', { id });
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.clientId !== user.id && user.role !== 'admin') {
+      throw new ForbiddenException('Only the project owner can change it');
+    }
+    return project;
   }
 
   @Get(':id')
