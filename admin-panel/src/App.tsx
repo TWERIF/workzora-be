@@ -7,7 +7,9 @@ import AdminChatsView from './pages/chats/AdminChatsView';
 import AdminKyc from './pages/kyc/ui/AdminKyc';
 import PaymentsPage from './pages/Payments/PaymentsPage';
 import PostsPage from './pages/posts/PostsPage';
+import ProjectsPage from './pages/projects/ProjectsPage';
 import StatsPage from './pages/stats/StatsPage';
+import SupportPage from './pages/support/SupportPage';
 import Layout from './shared/components/Layout';
 
 export default function App() {
@@ -20,6 +22,8 @@ export default function App() {
           <Route path="/" element={<Navigate to="/stats" replace />} />
 
           <Route path="/stats" element={<StatsPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/support" element={<SupportPage />} />
 
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/chats" element={<AdminChatsView />} />

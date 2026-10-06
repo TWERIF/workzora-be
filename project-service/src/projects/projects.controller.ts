@@ -1,6 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import {
+  AdminProjectsDto,
   AwaitingPaymentDto,
   CompleteProjectDto,
   CreateProjectDto,
@@ -71,6 +72,11 @@ export class ProjectsController {
   @MessagePattern('projects.findProjects')
   getProjects(@Payload() data: FindProjectsDto) {
     return this.projectsService.getProjects(data);
+  }
+
+  @MessagePattern('projects.adminList')
+  adminList(@Payload() data: AdminProjectsDto) {
+    return this.projectsService.adminList(data);
   }
 
   @MessagePattern('projects.toAwaitingPayment')

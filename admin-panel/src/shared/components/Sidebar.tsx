@@ -3,7 +3,9 @@ import { logout } from '@/pages/auth/model/api';
 import { useAuth } from '@/pages/auth/model/useAuth';
 import {
   BarChart3,
+  FolderKanban,
   HandIcon,
+  LifeBuoy,
   ListTree,
   Menu,
   MessageCircle,
@@ -22,6 +24,8 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { title: 'Статистика', path: '/stats', icon: BarChart3 },
+  { title: 'Проєкти', path: '/projects', icon: FolderKanban },
+  { title: 'Підтримка', path: '/support', icon: LifeBuoy },
   { title: 'Категорії', path: '/categories', icon: ListTree },
   { title: 'Чати', path: '/chats', icon: MessageCircle },
   { title: 'KYC', path: '/kyc', icon: VerifiedIcon },

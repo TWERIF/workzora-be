@@ -6,7 +6,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { Category } from '../categories/entities/category.entity';
 import { ChatService } from '../chat/chat.service';
-import { AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, IdDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import { AdminProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, IdDto, MyProjectsDto, UpdateProjectDto } from './dto';
 import { Project, ProjectStatus } from './entities/project.entity';
 
 @Injectable()
@@ -203,23 +203,17 @@ export class ProjectsService {
   }
 
   async toClosed(data: IdDto) {
-    try {
-      const project = await this.projectRepository.findOne({
-        where: { id: data.id },
-      });
-
-      if (!project) {
-        throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
-      }
-
-      project.status = ProjectStatus.CLOSED;
-
-      await this.projectRepository.save(project);
-
-    } catch (error) {
-      throw error;
+    const project = await this.projectRepository.findOne({ where: { id: data.id } });
+    if (!project) throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
+    if (project.status === ProjectStatus.IN_PROGRESS) {
+      throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'A paid project in progress cannot be closed' });
     }
+
+    project.status = ProjectStatus.CLOSED;
+    await this.projectRepository.save(project);
+    return { success: true };
   }
+
 
   async delete({ id }: IdDto) {
     const project = await this.projectRepository.findOne({
@@ -263,53 +257,33 @@ export class ProjectsService {
     }));
   }
 
-  async getProjects({
-    search,
-    categories,
-    tags,
-    minPrice,
-    maxPrice,
-    page = 1,
-    limit = 10,
-  }: FindProjectsDto) {
-    const skip = (page - 1) * limit;
-    console.log(`query started`);
+  getProjects(dto: FindProjectsDto) {
+    return this.listProjects(dto, [ProjectStatus.OPEN]);
+  }
 
-    const qb = this.projectRepository
-      .createQueryBuilder('project')
-      .leftJoinAndSelect('project.categories', 'category')
-      // .where('project.status = :status', { status: ProjectStatus.OPEN }); 
+  adminList({ status, ...dto }: AdminProjectsDto) {
+    return this.listProjects(dto, status ? [status] : undefined);
+  }
 
+  private async listProjects(
+    { search, categories, tags, minPrice, maxPrice, page = 1, limit = 10 }: FindProjectsDto,
+    statuses?: ProjectStatus[],
+  ) {
+    const qb = this.projectRepository.createQueryBuilder('project').leftJoinAndSelect('project.categories', 'category');
+
+    if (statuses?.length) qb.andWhere('project.status IN (:...statuses)', { statuses });
     if (search) {
-      qb.andWhere(
-        '(project.title ILIKE :search OR project.description ILIKE :search)',
-        { search: `%${search}%` },
-      );
+      qb.andWhere('(project.title ILIKE :search OR project.description ILIKE :search)', { search: `%${search}%` });
     }
+    if (categories?.length) qb.andWhere('category.id IN (:...categories)', { categories });
+    if (tags?.length) qb.andWhere('project.tags && :tags', { tags });
+    if (minPrice !== undefined) qb.andWhere('project.price >= :minPrice', { minPrice });
+    if (maxPrice !== undefined) qb.andWhere('project.price <= :maxPrice', { maxPrice });
 
-    if (categories?.length) {
-      qb.andWhere('category.id IN (:...categories)', { categories });
-    }
-
-    if (tags?.length) {
-      qb.andWhere('project.tags && :tags', { tags });
-    }
-
-    if (minPrice !== undefined) {
-      qb.andWhere('project.price >= :minPrice', { minPrice });
-    }
-
-    if (maxPrice !== undefined) {
-      qb.andWhere('project.price <= :maxPrice', { maxPrice });
-    }
-
-    qb.orderBy('project.createdAt', 'DESC').skip(skip).take(limit);
+    qb.orderBy('project.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
 
     const [projects, total] = await qb.getManyAndCount();
     const data = await this.attachProposalsCounts(projects);
-
-    console.log(`data: ${data}`)
-
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 

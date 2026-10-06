@@ -4,8 +4,8 @@ import type { WithdrawalStatus } from "@/features/withdrawals/model/types";
 import { useWithdrawalList } from "@/features/withdrawals/model/useWithdrawals";
 import { STATUS_LABELS, WithdrawalCard } from "@/features/withdrawals/ui/WithdrawalCard";
 import { WithdrawalModal } from "@/features/withdrawals/ui/WithdrawalModal";
-import { getPaginationRange } from "@/shared/utils/format";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Wallet } from "lucide-react";
+import Pagination from "@/shared/components/Pagination";
+import { Wallet } from "lucide-react";
 import { useState } from "react";
 
 const LIMIT = 12;
@@ -70,55 +70,7 @@ export default function PaymentsPage() {
                 </div>
             )}
 
-            {totalPages > 1 && (
-                <nav
-                    aria-label="Пагінація"
-                    className="mt-8 flex flex-wrap items-center justify-center gap-1"
-                >
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        aria-label="Попередня сторінка"
-                        disabled={page <= 1 || isFetching}
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    >
-                        <ChevronLeft className="size-4" />
-                    </Button>
-
-                    {getPaginationRange(page, totalPages).map((item, i) =>
-                        item === "ellipsis" ? (
-                            <span
-                                key={`ellipsis-${i}`}
-                                className="flex size-9 items-center justify-center text-muted-foreground"
-                            >
-                                <MoreHorizontal className="size-4" />
-                            </span>
-                        ) : (
-                            <Button
-                                key={item}
-                                variant={item === page ? "default" : "outline"}
-                                size="icon"
-                                disabled={isFetching}
-                                aria-current={item === page ? "page" : undefined}
-                                onClick={() => setPage(item)}
-                                className="tabular-nums"
-                            >
-                                {item}
-                            </Button>
-                        ),
-                    )}
-
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        aria-label="Наступна сторінка"
-                        disabled={page >= totalPages || isFetching}
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    >
-                        <ChevronRight className="size-4" />
-                    </Button>
-                </nav>
-            )}
+            <Pagination page={page} totalPages={totalPages} disabled={isFetching} onChange={setPage} />
 
             <WithdrawalModal
                 withdrawalId={selectedId}
