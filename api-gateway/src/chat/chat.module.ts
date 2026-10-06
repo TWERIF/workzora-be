@@ -1,39 +1,21 @@
 import { Module } from '@nestjs/common';
-import { ChatService } from './chat.service';
-import { ChatController } from './chat.controller';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ChatGateway } from './chat.gateway';
+import { ClientsModule } from '@nestjs/microservices';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
+import { rmqClient } from '../common/rmq';
+import { ChatAccessService } from './chat-access.service';
+import { ChatController } from './chat.controller';
+import { ChatGateway } from './chat.gateway';
 
 @Module({
   imports: [
     ClientsModule.register([
-      {
-        name: 'PROJECT_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://rabbitmq:5672'],
-          queue: 'projects_queue',
-          queueOptions: {
-            durable: true,
-          },
-        },
-      },
-      {
-        name: 'USERS_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://rabbitmq:5672'],
-          queue: 'users_queue',
-          queueOptions: {
-            durable: true,
-          },
-        },
-      },
+      rmqClient('PROJECT_SERVICE'),
+      rmqClient('AUTH_SERVICE'),
+      { ...rmqClient('USER_SERVICE'), name: 'USERS_SERVICE' },
     ]),
   ],
   controllers: [ChatController],
-  providers: [ChatGateway, CloudinaryService],
-  exports:[CloudinaryService]
+  providers: [ChatGateway, ChatAccessService, CloudinaryService],
+  exports: [CloudinaryService],
 })
-export class ChatModule { }
+export class ChatModule {}

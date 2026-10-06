@@ -1,15 +1,13 @@
 import {
-  BadRequestException,
-  HttpException,
   HttpStatus,
   Injectable,
-  NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { In, Repository } from 'typeorm';
 import { FindByEmailDto } from './dto';
 import { User } from './entities/user.entity';
@@ -46,32 +44,40 @@ export class UsersService implements OnModuleInit {
 
   async createUser(data: Partial<User>): Promise<User> {
     const { email, password } = data;
-    if (!email || !password)
-      throw new HttpException(
-        'User email or password must be provided',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (!email || !password) {
+      throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'User email or password must be provided' });
+    }
 
-    const existingUser = await this.userRepository.findOne({
-      where: { email },
-    });
-
+    const existingUser = await this.userRepository.findOne({ where: { email } });
     if (existingUser) {
-      throw new HttpException(
-        'User with this email already exists',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new RpcException({ statusCode: HttpStatus.CONFLICT, message: 'User with this email already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = this.userRepository.create({
-      ...data,
-      password: hashedPassword,
-    });
-
-    return this.userRepository.save(user);
+    return this.userRepository.save(this.userRepository.create({ ...data, password: hashedPassword }));
   }
+
+  async findOrCreate(profile: { email: string; name?: string; avatar?: string }) {
+    const existing = await this.userRepository.findOne({ where: { email: profile.email } });
+    if (existing) {
+      const { password: _password, ...user } = existing;
+      return user;
+    }
+
+    const [firstName = '', ...rest] = (profile.name ?? '').trim().split(/\s+/);
+    const created = await this.createUser({
+      email: profile.email,
+      password: randomBytes(32).toString('hex'),
+      firstName,
+      lastName: rest.join(' '),
+      username: profile.email.split('@')[0],
+      avatarUrl: profile.avatar,
+      isActive: true,
+    });
+    const { password: _password, ...user } = created;
+    return user;
+  }
+
   async count() {
     try {
       return this.userRepository.count();
@@ -81,16 +87,20 @@ export class UsersService implements OnModuleInit {
   }
 
   async get(id: string) {
-    try {
-      const user = await this.userRepository.findOne({ where: { id: id } });
-      if (!user) throw new BadRequestException();
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new RpcException({ statusCode: 404, message: 'User not found' });
 
-      const { password, ...result } = user;
+    const { password: _password, ...result } = user;
+    return result;
+  }
 
-      return result;
-    } catch (error) {
-      throw error;
-    }
+  async getPublic(id: string) {
+    const user = await this.userRepository.findOne({
+      select: [...PUBLIC_USER_FIELDS, 'workType', 'preferredBudgetType', 'preferredProjectSize'],
+      where: { id },
+    });
+    if (!user) throw new RpcException({ statusCode: 404, message: 'User not found' });
+    return user;
   }
 
   async getMany(ids: string[]) {
@@ -171,7 +181,7 @@ export class UsersService implements OnModuleInit {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'User not found' });
     }
 
     // Registration date is set once on insert and must not be editable by the user.
@@ -301,39 +311,24 @@ export class UsersService implements OnModuleInit {
     const userIds = users.map((item) => item.id);
     const portfolios = await this.portfolioService.findByUserIds(userIds);
 
-    console.log(portfolios);
-
-    return users.map((item) => {
-      return {
-        ...item,
-        portfolio: portfolios.find((el) => el.userId == item.id)
-      }
-    })
-
+    return users.map((item) => ({
+      ...item,
+      portfolio: portfolios.find((portfolio) => portfolio.userId === item.id),
+    }));
   }
 
-  async getProfilesPreview({ role, amount }: { role: string; amount: any }) {
-    return await this.userRepository.find({
+  getProfilesPreview({ role, amount }: { role?: string; amount?: number }) {
+    return this.userRepository.find({
       select: ['id', 'firstName', 'lastName', 'avatarUrl'],
-      where: {
-        role: role,
-      },
-      take: Number(amount) || 10,
-      order: {
-        ratings: 'DESC',
-      },
+      where: role ? { role } : {},
+      take: amount ?? 10,
+      order: { ratings: 'DESC' },
     });
   }
-  async uploadImage(data) {
-    const user = await this.userRepository.findOne({
-      where: { id: data.userId },
-    });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    await this.userRepository.update(user.id, { avatarUrl: data.avatarUrl });
+  async uploadImage(data: { userId: string; avatarUrl: string }) {
+    const result = await this.userRepository.update(data.userId, { avatarUrl: data.avatarUrl });
+    if (!result.affected) throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'User not found' });
     return { success: true };
   }
 }

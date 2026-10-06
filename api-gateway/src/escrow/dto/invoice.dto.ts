@@ -1,83 +1,80 @@
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from "class-validator";
-export enum EscrowStatus {
-    CREATED,
-    HELD,
-    DISPUTED,
-    CAPTURED,
-    PAID_OUT,
-    REFUNDED,
-    EXPIRED,
-}
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsIn, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { PaginationQueryDto } from '../../common/pagination.dto';
 
 export enum WonDispute {
-    CLIENT, FREELANCER
+  CLIENT,
+  FREELANCER,
 }
 
+export class CreateEscrowBodyDto {
+  @ApiProperty()
+  @IsUUID()
+  projectId!: string;
 
-export class CreateEscrowDto {
-    @IsInt()
-    @Min(1)
-    amount!: number;
-
-    @IsInt()
-    currencyCode!: number;
-
-    @IsUUID()
-    projectId!: string;
-
-    @IsUUID()
-    clientId!: string;
-
-    @IsUUID()
-    freelancerId!: string;
-
-    @IsOptional()
-    @IsString()
-    description?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(458)
+  description?: string;
 }
 
-export class ConfirmEscrowDto {
-    @IsUUID()
-    invoiceId!: string;
-
-    @IsUUID()
-    clientId!: string;
+export class OpenDisputeBodyDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  reason!: string;
 }
 
-export class OpenDisputeDto {
-    @IsUUID()
-    invoiceId!: string;
+export class ResolveDisputeBodyDto {
+  @ApiProperty({ enum: WonDispute, description: '0 client, 1 freelancer' })
+  @Type(() => Number)
+  @IsIn([WonDispute.CLIENT, WonDispute.FREELANCER])
+  decision!: WonDispute;
 
-    @IsUUID()
-    initiatorId!: string;
-
-    @IsString()
-    reason!: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
 }
 
-export class ResolveDisputeDto {
-    @IsUUID()
-    invoiceId!: string;
-
-    @IsUUID()
-    adminId!: string;
-
-    @IsIn([WonDispute.CLIENT, WonDispute.FREELANCER])
-    decision!: WonDispute;
-
-    @IsOptional()
-    @IsString()
-    note?: string;
+export class HistoryQueryDto {
+  @ApiPropertyOptional({ description: 'ISO date, only newer entries' })
+  @IsOptional()
+  @IsISO8601()
+  from?: string;
 }
 
-export class MonobankWebhookEventDto {
-    @IsString()
-    invoiceId!: string;
+export class TransactionsQueryDto extends HistoryQueryDto {
+  @ApiPropertyOptional({ enum: ['balance', 'bonus'] })
+  @IsOptional()
+  @IsIn(['balance', 'bonus'])
+  kind?: 'balance' | 'bonus';
+}
 
-    @IsString()
-    status!: string;
+export class CreateWithdrawalDto {
+  @ApiProperty({ description: 'USD, at least 10' })
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(10)
+  @Max(1_000_000)
+  amount!: number;
+}
 
-    @IsOptional()
-    @IsInt()
-    amount?: number;
+export class AdminWithdrawalsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ enum: ['processing', 'completed', 'rejected'] })
+  @IsOptional()
+  @IsIn(['processing', 'completed', 'rejected'])
+  status?: string;
+}
+
+export class RejectWithdrawalDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }

@@ -1,7 +1,7 @@
-import { IsEmail, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, IsUUID } from 'class-validator';
 
 export class LoginDto {
-  @IsString()
+  @IsUUID()
   id!: string;
 
   @IsEmail()
@@ -9,4 +9,10 @@ export class LoginDto {
 
   @IsString()
   role!: string;
+}
+
+export class GoogleVerifyDto {
+  @IsString()
+  @IsNotEmpty()
+  idToken!: string;
 }

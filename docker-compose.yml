@@ -52,6 +52,7 @@ services:
     container_name: auth-service
     environment:
       - RABBITMQ_URL=${RABBITMQ_URL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_USER=${POSTGRES_USER}

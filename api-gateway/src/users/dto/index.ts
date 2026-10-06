@@ -1,0 +1,156 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
+import { PaginationQueryDto } from '../../common/pagination.dto';
+
+export const WORK_TYPES = ['FULLTIME', 'PARTTIME', 'FLEXIBLE'] as const;
+export const BUDGET_TYPES = ['HOURLY', 'FIXED'] as const;
+export const PROJECT_SIZES = ['SMALL', 'MEDIUM', 'LARGE'] as const;
+export const AVAILABILITY = ['AVAILABLE', 'OPENTOOFFERS', 'BUSY', 'NOTAVAILABLE'] as const;
+
+export class UpdateUserDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  firstName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  lastName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  username?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsEmail()
+  reserveEmail?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  country?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  bio?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  position?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  skills?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100000)
+  rate?: number;
+
+  @ApiPropertyOptional({ enum: WORK_TYPES })
+  @IsOptional()
+  @IsIn(WORK_TYPES)
+  workType?: string;
+
+  @ApiPropertyOptional({ enum: AVAILABILITY })
+  @IsOptional()
+  @IsIn(AVAILABILITY)
+  availability?: string;
+
+  @ApiPropertyOptional({ enum: BUDGET_TYPES })
+  @IsOptional()
+  @IsIn(BUDGET_TYPES)
+  preferredBudgetType?: string;
+
+  @ApiPropertyOptional({ enum: PROJECT_SIZES })
+  @IsOptional()
+  @IsIn(PROJECT_SIZES)
+  preferredProjectSize?: string;
+
+  @ApiPropertyOptional({ enum: ['client', 'freelancer'], description: 'Only once, right after sign-up' })
+  @IsOptional()
+  @IsIn(['client', 'freelancer'])
+  role?: string;
+}
+
+export class ProfilesPreviewQueryDto {
+  @ApiPropertyOptional({ enum: ['client', 'freelancer'] })
+  @IsOptional()
+  @IsIn(['client', 'freelancer'])
+  role?: string;
+
+  @ApiPropertyOptional({ default: 4 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  amount?: number;
+}
+
+export class TopClientsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  search?: string;
+
+  @ApiPropertyOptional({ description: 'Comma separated star ratings, for example 4,5' })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.split(',').filter(Boolean).map(Number) : value,
+  )
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(5, { each: true })
+  ratings?: number[];
+}

@@ -1,7 +1,7 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { AppModule } from './app.module';
+import { rpcValidationPipe } from './common/rpc-validation.pipe';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
@@ -15,15 +15,8 @@ async function bootstrap() {
       },
     },
   );
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+  app.useGlobalPipes(rpcValidationPipe);
 
   await app.listen();
-  console.log('Posts microservice listening...');
 }
 bootstrap();

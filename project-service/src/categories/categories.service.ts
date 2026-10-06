@@ -1,10 +1,8 @@
-import {
-    Injectable,
-    NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type {
+import {
     CreateCategoriesDto,
     UpdateCategoriesDto
 } from './dto';
@@ -37,7 +35,7 @@ export class CategoriesService {
             .getOne();
 
         if (!category) {
-            throw new NotFoundException('Category not found');
+            throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Category not found' });
         }
 
         return category;

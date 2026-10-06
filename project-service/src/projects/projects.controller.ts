@@ -1,41 +1,50 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import type { Id } from '../categories/dto';
-import type { AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import {
+  AwaitingPaymentDto,
+  CompleteProjectDto,
+  CreateProjectDto,
+  FindProjectsDto,
+  IdDto,
+  IdsDto,
+  MyProjectsDto,
+  StatsRangeDto,
+  UpdateProjectDto,
+  UserIdDto,
+} from './dto';
 import { ProjectsService } from './projects.service';
 
 @Controller()
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) { }
+  constructor(private readonly projectsService: ProjectsService) {}
 
   @MessagePattern('projects.findOneProject')
-  findOne(@Payload() data: Id) {
+  findOne(@Payload() data: IdDto) {
     return this.projectsService.findOne(data.id);
   }
 
   @MessagePattern('stats.projects')
-  stats(@Payload() range: { from: string; to: string }) {
+  stats(@Payload() range: StatsRangeDto) {
     return this.projectsService.stats(range);
   }
 
   @MessagePattern('projects.activeDeals')
-  activeDeals(@Payload() data: { userId: string }) {
+  activeDeals(@Payload() data: UserIdDto) {
     return this.projectsService.countActiveDeals(data);
   }
 
   @MessagePattern('projects.count')
-  async count() {
+  count() {
     return this.projectsService.count();
   }
 
   @MessagePattern('projects.findManyByIds')
-  findManyByIds(@Payload() data: { ids: string[] }) {
+  findManyByIds(@Payload() data: IdsDto) {
     return this.projectsService.findManyByIds(data.ids);
   }
 
   @MessagePattern('projects.update')
   update(@Payload() data: UpdateProjectDto) {
-    console.log("Controller: ", data);
     return this.projectsService.update(data);
   }
 
@@ -45,35 +54,23 @@ export class ProjectsController {
   }
 
   @MessagePattern('projects.delete')
-  delete(@Payload() data: Id) {
+  delete(@Payload() data: IdDto) {
     return this.projectsService.delete(data);
   }
 
   @MessagePattern('projects.getTopProjects')
   getTopProjects() {
-    try {
-      return this.projectsService.getTopProjects();
-    } catch (e) {
-      return { error: 'DB_ERROR' };
-    }
+    return this.projectsService.getTopProjects();
   }
+
   @MessagePattern('projects.findMyProjects')
   findMyProjects(@Payload() data: MyProjectsDto) {
-    try {
-      return this.projectsService.findMyProjects(data);
-    } catch (e) {
-      return { error: 'DB_ERROR' };
-    }
+    return this.projectsService.findMyProjects(data);
   }
+
   @MessagePattern('projects.findProjects')
-  async getProjects(
-    @Payload() data: FindProjectsDto,
-  ) {
-    try {
-      return await this.projectsService.getProjects(data);
-    } catch (e) {
-      return { error: 'DB_ERROR' };
-    }
+  getProjects(@Payload() data: FindProjectsDto) {
+    return this.projectsService.getProjects(data);
   }
 
   @MessagePattern('projects.toAwaitingPayment')
@@ -82,20 +79,22 @@ export class ProjectsController {
   }
 
   @MessagePattern('projects.toInProgress')
-  toInProgress(@Payload() data: Id) {
+  toInProgress(@Payload() data: IdDto) {
     return this.projectsService.toInProgress(data);
   }
+
   @MessagePattern('projects.toInCompleted')
   toInCompleted(@Payload() data: CompleteProjectDto) {
     return this.projectsService.toInCompleted(data);
   }
+
   @MessagePattern('projects.lastByClients')
-  lastByClients(@Payload() data: { ids: string[] }) {
+  lastByClients(@Payload() data: IdsDto) {
     return this.projectsService.findLastByClients(data.ids);
   }
 
   @MessagePattern('projects.toClosed')
-  toClosed(@Payload() data: Id) {
+  toClosed(@Payload() data: IdDto) {
     return this.projectsService.toClosed(data);
   }
 }
