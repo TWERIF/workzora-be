@@ -28,7 +28,7 @@ export default function ChatItem({
                 <Avatar>
                     <AvatarImage src={chat.client.avatarUrl || ""} />
                     <AvatarFallback>
-                        {chat.client.name[0]}
+                        {(chat.client.name ?? "?")[0]}
                     </AvatarFallback>
                 </Avatar>
 
@@ -44,11 +44,11 @@ export default function ChatItem({
                     </div>
 
                     <p className="text-xs text-muted-foreground">
-                        {chat.client.name} ↔ {chat.freelancer.name}
+                        {chat.client.name ?? "—"} ↔ {chat.freelancer.name ?? "—"}
                     </p>
 
                     <p className="text-sm text-muted-foreground truncate mt-1">
-                        {chat.topic}
+                        {chat.topic ?? "Чат створено"}
                     </p>
                 </div>
             </div>
