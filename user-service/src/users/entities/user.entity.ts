@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BeforeInsert, Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { Availability, PreferredBudgetType, PreferredProjectSize, UserRole, WorkType } from '../../types';
 
 @Entity({ name: 'users', schema: 'users' })
@@ -84,4 +84,17 @@ export class User {
 
   @Column({ nullable: true })
   avatarUrl!: string;
+
+  @Column({ type: 'text', default: '' })
+  bio!: string;
+
+  // Nullable on purpose: users created before this column existed have no known
+  // registration date, and a DEFAULT now() would backfill them with the deploy date.
+  @Column({ type: 'timestamptz', nullable: true })
+  createdAt!: Date | null;
+
+  @BeforeInsert()
+  setCreatedAt() {
+    this.createdAt = new Date();
+  }
 }

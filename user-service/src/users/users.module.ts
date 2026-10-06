@@ -6,6 +6,7 @@ import { User } from './entities/user.entity';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { PortfolioModule } from '../portfolio/portfolio.module';
+import { ReviewsModule } from '../reviews/reviews.module';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { PortfolioModule } from '../portfolio/portfolio.module';
         },
       },
     ]), 
-    PortfolioModule
+    PortfolioModule,
+    ReviewsModule,
   ],
   providers: [UsersService, EmailService],
   exports: [UsersService],

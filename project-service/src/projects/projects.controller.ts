@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import type { Id } from '../categories/dto';
-import type { AwaitingPaymentDto, CreateProjectDto, FindProjectsDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import type { AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, MyProjectsDto, UpdateProjectDto } from './dto';
 import { ProjectsService } from './projects.service';
 
 @Controller()
@@ -76,9 +76,14 @@ export class ProjectsController {
     return this.projectsService.toInProgress(data);
   }
   @MessagePattern('projects.toInCompleted')
-  toInCompleted(@Payload() data: Id) {
+  toInCompleted(@Payload() data: CompleteProjectDto) {
     return this.projectsService.toInCompleted(data);
   }
+  @MessagePattern('projects.lastByClients')
+  lastByClients(@Payload() data: { ids: string[] }) {
+    return this.projectsService.findLastByClients(data.ids);
+  }
+
   @MessagePattern('projects.toClosed')
   toClosed(@Payload() data: Id) {
     return this.projectsService.toClosed(data);

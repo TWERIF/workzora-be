@@ -3,6 +3,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { ConfirmEmailDto, CreateUserDto, FindByEmailDto } from './dto';
 import { EmailService } from './email.service';
 import { User } from './entities/user.entity';
+import type { TopClientsQuery } from './users.service';
 import { UsersService } from './users.service';
 
 @Controller()
@@ -60,6 +61,11 @@ export class UsersController {
   @MessagePattern('users.findTopClients')
   async findTopClients() {
     return this.userService.findTopClients();
+  }
+
+  @MessagePattern('users.findTopClientsPaged')
+  async findTopClientsPaged(@Payload() data: TopClientsQuery) {
+    return this.userService.findTopClientsPaged(data);
   }
 
   @MessagePattern('users.findTopFreelancers')

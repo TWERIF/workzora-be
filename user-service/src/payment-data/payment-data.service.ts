@@ -88,6 +88,19 @@ export class PaymentDataService {
         return safe; // id, userId, maskedCardNumber, createdAt, updatedAt
     }
 
+    // Full card number for manual payouts; exposed only to admins through the gateway.
+    async getFullCardNumber(userId: string): Promise<string> {
+        const existing = await this.paymentDataRepository.findOne({ where: { userId } });
+        if (!existing) {
+            throw new RpcException(`Payment data for user ${userId} not found`);
+        }
+        return this.crypto.decrypt(
+            existing.cardNumberEncrypted,
+            existing.cardNumberIv,
+            existing.cardNumberAuthTag,
+        );
+    }
+
     private mask(cardNumber: string): string {
         const last4 = cardNumber.slice(-4);
         return `•••• •••• •••• ${last4}`;

@@ -80,3 +80,7 @@ export function getPaginationRange(current: number, total: number, siblings = 1)
 
     return range;
 }
+// For amounts already in dollars (formatMoney above expects cents).
+export function formatUsd(amount: number, locale = "uk-UA"): string {
+    return new Intl.NumberFormat(locale, { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(amount);
+}

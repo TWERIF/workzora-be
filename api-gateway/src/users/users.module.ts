@@ -9,6 +9,28 @@ import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
   imports: [
     ClientsModule.register([
       {
+        name: 'KYC_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://rabbitmq:5672'],
+          queue: 'kyc_queue',
+          queueOptions: {
+            durable: true,
+          },
+        },
+      },
+      {
+        name: 'PROJECT_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://rabbitmq:5672'],
+          queue: 'projects_queue',
+          queueOptions: {
+            durable: true,
+          },
+        },
+      },
+      {
         name: 'USER_SERVICE',
         transport: Transport.RMQ,
         options: {
