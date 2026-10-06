@@ -23,6 +23,7 @@ import type { AuthUser } from '../common/auth-user';
 import { ProjectRecord } from '../common/project';
 import { sendRpc } from '../common/rpc';
 import {
+  AdminProjectsQueryDto,
   AwaitingPaymentDto,
   CreateProjectDto,
   FindProjectsQueryDto,
@@ -80,6 +81,14 @@ export class ProjectsController {
     const namesById = new Map(clients.filter((client): client is ClientSummary => !!client).map((c) => [c.id, c.firstName]));
 
     return projects.map((project) => ({ ...project, clientName: namesById.get(project.clientId) ?? null }));
+  }
+
+  @Roles('admin')
+  @Get('admin')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'All projects with status filter (admin)' })
+  adminList(@Query() query: AdminProjectsQueryDto) {
+    return sendRpc(this.projectClient, 'projects.adminList', query);
   }
 
   @Roles('client')

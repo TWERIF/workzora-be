@@ -146,6 +146,12 @@ export class FindProjectsDto extends PaginationDto {
   maxPrice?: number;
 }
 
+export class AdminProjectsDto extends FindProjectsDto {
+  @IsOptional()
+  @IsEnum(ProjectStatus)
+  status?: ProjectStatus;
+}
+
 export class MyProjectsDto extends PaginationDto {
   @IsUUID()
   userId!: string;

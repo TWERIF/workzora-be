@@ -115,3 +115,10 @@ export class FindProjectsQueryDto extends PaginationQueryDto {
   @Min(0)
   maxPrice?: number;
 }
+
+export class AdminProjectsQueryDto extends FindProjectsQueryDto {
+  @ApiPropertyOptional({ enum: PROJECT_STATUSES })
+  @IsOptional()
+  @IsIn(PROJECT_STATUSES)
+  status?: string;
+}
