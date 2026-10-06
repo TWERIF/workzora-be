@@ -1,6 +1,6 @@
 export interface ChatUser {
     id: string | null;
-    name: string;
+    name: string | null;
     avatarUrl: string | null;
 }
 
@@ -14,7 +14,7 @@ export interface AdminChat {
     client: ChatUser;
     freelancer: ChatUser;
 
-    topic: string;
+    topic: string | null;
     messageCount: number;
     isUnread: boolean;
 }
