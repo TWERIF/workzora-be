@@ -41,6 +41,14 @@ export class UsersController {
     );
   }
 
+  // client <-> freelancer, once per 7 days and only without running deals
+  @Post('switch-role')
+  async switchRole(@Req() req: Request) {
+    const userId = (req as any).user.id;
+    const deals = await sendRpc<{ total: number }>(this.projectClient, 'projects.activeDeals', { userId });
+    return sendRpc(this.userClient, 'users.switchRole', { id: userId, activeDeals: deals.total });
+  }
+
   @Put('update')
   async updateUser(@Body() body: any, @Req() req: Request) {
     const id = (req as any).user.id;

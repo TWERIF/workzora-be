@@ -410,4 +410,22 @@ export class ProjectsService {
       byDay: byDay.map((r) => ({ day: r.day, count: Number(r.count) })),
     };
   }
+
+  // A user can't change account type while a deal is running: as a client they would lose the
+  // right to pay for / complete it, as a freelancer the work in progress would be orphaned.
+  async countActiveDeals({ userId }: { userId: string }) {
+    const asClient = await this.projectRepository.count({
+      where: [
+        { clientId: userId, status: ProjectStatus.AWAITING_PAYMENT },
+        { clientId: userId, status: ProjectStatus.IN_PROGRESS },
+      ],
+    });
+    const asFreelancer = await this.projectRepository.count({
+      where: [
+        { freelancerId: userId, status: ProjectStatus.AWAITING_PAYMENT },
+        { freelancerId: userId, status: ProjectStatus.IN_PROGRESS },
+      ],
+    });
+    return { asClient, asFreelancer, total: asClient + asFreelancer };
+  }
 }
