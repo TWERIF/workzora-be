@@ -9,9 +9,11 @@ import {
     FieldLabel,
 } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
+import { uploadPostImage } from "@/features/posts/model/api";
+import Image from "@tiptap/extension-image";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 
 interface TipTapEditorProps {
@@ -28,10 +30,17 @@ export default function TipTapEditor({
 }: TipTapEditorProps) {
 
 
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+
     const editor = useEditor({
 
         extensions: [
             StarterKit,
+            Image.configure({
+                HTMLAttributes: { loading: "lazy" },
+            }),
         ],
 
         content: value,
@@ -45,7 +54,9 @@ export default function TipTapEditor({
                     "p-4",
                     "outline-none",
                     "text-sm",
-                    "leading-relaxed"
+                    "leading-relaxed",
+                    "[&_img]:my-3 [&_img]:max-w-full [&_img]:rounded-lg",
+                    "[&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold"
                 )
             }
         },
@@ -85,6 +96,24 @@ export default function TipTapEditor({
     if (!editor) {
         return null;
     }
+
+
+    const handleImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+
+        setUploadError(null);
+        setIsUploading(true);
+        try {
+            const url = await uploadPostImage(file);
+            editor.chain().focus().setImage({ src: url, alt: file.name.replace(/\.[^.]+$/, "") }).run();
+        } catch {
+            setUploadError("Не вдалося завантажити фото");
+        } finally {
+            setIsUploading(false);
+        }
+    };
 
 
 
@@ -150,6 +179,53 @@ export default function TipTapEditor({
 
 
                         <ToolbarButton
+                            active={editor.isActive("heading", { level: 2 })}
+                            onClick={() =>
+                                editor
+                                    .chain()
+                                    .focus()
+                                    .toggleHeading({ level: 2 })
+                                    .run()
+                            }
+                        >
+                            H2
+                        </ToolbarButton>
+
+
+
+                        <ToolbarButton
+                            active={editor.isActive("heading", { level: 3 })}
+                            onClick={() =>
+                                editor
+                                    .chain()
+                                    .focus()
+                                    .toggleHeading({ level: 3 })
+                                    .run()
+                            }
+                        >
+                            H3
+                        </ToolbarButton>
+
+
+
+                        <ToolbarButton
+                            disabled={isUploading}
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {isUploading ? "Завантаження..." : "Фото"}
+                        </ToolbarButton>
+
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleImageSelected}
+                        />
+
+
+
+                        <ToolbarButton
                             active={editor.isActive("bulletList")}
                             onClick={() =>
                                 editor
@@ -208,6 +284,12 @@ export default function TipTapEditor({
 
                     </div>
 
+                    {uploadError && (
+                        <p className="px-3 pt-2 text-sm text-destructive">
+                            {uploadError}
+                        </p>
+                    )}
+
 
 
                     <CardContent
@@ -237,11 +319,13 @@ export default function TipTapEditor({
 function ToolbarButton({
     children,
     onClick,
-    active = false
+    active = false,
+    disabled = false
 }: {
     children: React.ReactNode;
     onClick: () => void;
     active?: boolean;
+    disabled?: boolean;
 }) {
 
     return (
@@ -249,6 +333,7 @@ function ToolbarButton({
         <button
             type="button"
             onClick={onClick}
+            disabled={disabled}
 
             className={`
                 rounded
@@ -256,6 +341,7 @@ function ToolbarButton({
                 px-3
                 py-1
                 text-sm
+                disabled:opacity-50
 
                 ${active
                     ?

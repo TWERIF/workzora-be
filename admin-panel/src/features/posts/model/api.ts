@@ -5,6 +5,16 @@ export const createPost = async (formData: FormData) => {
     return res.data;
 };
 
+// Uploads an image for the article body and returns its public URL
+export const uploadPostImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("image", file);
+    const res = await api.post<{ url: string }>("/posts/images", formData, {
+        timeout: 60000,
+    });
+    return res.data.url;
+};
+
 export const getAllPosts = async (
     page: number = 1,
     limit: number = 10,
