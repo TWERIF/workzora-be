@@ -7,7 +7,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { Category } from '../categories/entities/category.entity';
 import { ChatService } from '../chat/chat.service';
-import { AdminProjectsDto, ClientProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, IdDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import { AdminProjectsDto, ClientProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FeaturedDto, FindProjectsDto, IdDto, MyProjectsDto, UpdateProjectDto } from './dto';
 import { Project, ProjectStatus } from './entities/project.entity';
 
 @Injectable()
@@ -51,6 +51,7 @@ export class ProjectsService {
       tags: dto.tags ?? [],
       clientId: dto.clientId,
       price: dto.price,
+      isUrgent: dto.isUrgent ?? false,
     });
 
     await this.projectRepository.save(project);
@@ -95,6 +96,10 @@ export class ProjectsService {
 
     if (dto.price !== undefined) {
       project.price = dto.price;
+    }
+
+    if (dto.isUrgent !== undefined) {
+      project.isUrgent = dto.isUrgent;
     }
 
 
@@ -233,6 +238,12 @@ export class ProjectsService {
     return saved;
   }
 
+  async setFeatured({ id, isFeatured }: FeaturedDto) {
+    const result = await this.projectRepository.update(id, { isFeatured });
+    if (!result.affected) throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
+    return { success: true };
+  }
+
   async toClosed(data: IdDto) {
     const project = await this.projectRepository.findOne({ where: { id: data.id } });
     if (!project) throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
@@ -297,7 +308,7 @@ export class ProjectsService {
   }
 
   private async listProjects(
-    { search, categories, tags, minPrice, maxPrice, page = 1, limit = 10 }: FindProjectsDto,
+    { search, categories, tags, minPrice, maxPrice, sort, page = 1, limit = 10 }: FindProjectsDto,
     statuses?: ProjectStatus[],
   ) {
     const qb = this.projectRepository.createQueryBuilder('project').leftJoinAndSelect('project.categories', 'category');
@@ -319,7 +330,9 @@ export class ProjectsService {
     if (minPrice !== undefined) qb.andWhere('project.price >= :minPrice', { minPrice });
     if (maxPrice !== undefined) qb.andWhere('project.price <= :maxPrice', { maxPrice });
 
-    qb.orderBy('project.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    if (sort === 'top') qb.orderBy('project.isFeatured', 'DESC').addOrderBy('project.views', 'DESC').addOrderBy('project.createdAt', 'DESC');
+    else qb.orderBy('project.createdAt', 'DESC');
+    qb.skip((page - 1) * limit).take(limit);
 
     const [projects, total] = await qb.getManyAndCount();
     const data = await this.attachProposalsCounts(projects);
@@ -357,7 +370,8 @@ export class ProjectsService {
 
   async getTopProjects() {
     const projects = await this.projectRepository.find({
-      order: { views: 'DESC' },
+      where: { status: ProjectStatus.OPEN },
+      order: { isFeatured: 'DESC', views: 'DESC' },
       relations: { categories: true },
       take: 6,
     });

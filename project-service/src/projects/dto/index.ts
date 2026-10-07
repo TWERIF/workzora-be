@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsIn,
   IsISO8601,
@@ -90,6 +91,10 @@ export class CreateProjectDto {
   @IsNumber()
   @Min(1)
   price!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isUrgent?: boolean;
 }
 
 export class UpdateProjectDto {
@@ -124,6 +129,18 @@ export class UpdateProjectDto {
   @IsNumber()
   @Min(1)
   price?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isUrgent?: boolean;
+}
+
+export class FeaturedDto {
+  @IsUUID()
+  id!: string;
+
+  @IsBoolean()
+  isFeatured!: boolean;
 }
 
 export class FindProjectsDto extends PaginationDto {
@@ -150,6 +167,10 @@ export class FindProjectsDto extends PaginationDto {
   @Type(() => Number)
   @IsNumber()
   maxPrice?: number;
+
+  @IsOptional()
+  @IsIn(['new', 'top'])
+  sort?: 'new' | 'top';
 }
 
 export class AdminProjectsDto extends FindProjectsDto {

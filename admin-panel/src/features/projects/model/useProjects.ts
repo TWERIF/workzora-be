@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { closeProject, deleteProject, findProjects, type AdminProjectsParams } from "./api";
+import { closeProject, deleteProject, findProjects, setFeatured, type AdminProjectsParams } from "./api";
 
 export const PROJECT_KEYS = {
     all: ["admin-projects"] as const,
@@ -22,6 +22,11 @@ const useInvalidateProjects = () => {
 export const useDeleteProject = () => {
     const invalidate = useInvalidateProjects();
     return useMutation({ mutationFn: deleteProject, onSuccess: invalidate });
+};
+
+export const useSetFeatured = () => {
+    const invalidate = useInvalidateProjects();
+    return useMutation({ mutationFn: setFeatured, onSuccess: invalidate });
 };
 
 export const useCloseProject = () => {

@@ -10,6 +10,8 @@ export interface AdminProject {
     freelancerId: string | null;
     createdAt: string;
     proposalsCount?: number;
+    isFeatured: boolean;
+    isUrgent: boolean;
     categories: { id: string; title: string }[];
 }
 

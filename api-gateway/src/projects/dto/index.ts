@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsNumber,
   IsOptional,
@@ -55,6 +56,17 @@ export class CreateProjectDto {
   @Min(1)
   @Max(20000)
   price!: number;
+
+  @ApiPropertyOptional({ description: 'Mark the project as urgent (ASAP)' })
+  @IsOptional()
+  @IsBoolean()
+  isUrgent?: boolean;
+}
+
+export class FeaturedDto {
+  @ApiProperty()
+  @IsBoolean()
+  isFeatured!: boolean;
 }
 
 export class UpdateProjectDto extends PartialType(CreateProjectDto) {}
@@ -119,6 +131,11 @@ export class FindProjectsQueryDto extends PaginationQueryDto {
   @IsNumber()
   @Min(0)
   maxPrice?: number;
+
+  @ApiPropertyOptional({ enum: ['new', 'top'], description: 'top: featured first, then by views' })
+  @IsOptional()
+  @IsIn(['new', 'top'])
+  sort?: 'new' | 'top';
 }
 
 export class AdminProjectsQueryDto extends FindProjectsQueryDto {
