@@ -20,7 +20,7 @@ interface SendMessagePayload {
 }
 
 interface SocketData {
-  user?: ChatParticipant;
+  auth?: Promise<ChatParticipant | null>;
 }
 
 const MAX_MESSAGE_LENGTH = 10000;
@@ -47,27 +47,32 @@ export class ChatGateway implements OnGatewayConnection {
   constructor(
     @Inject('AUTH_SERVICE') private readonly authClient: ClientProxy,
     @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
+    @Inject('USERS_SERVICE') private readonly usersClient: ClientProxy,
     private readonly chatAccess: ChatAccessService,
   ) {}
 
-  async handleConnection(client: Socket) {
+  handleConnection(client: Socket) {
     const token = readCookie(client.handshake.headers.cookie, 'access_token');
     if (!token) {
       client.disconnect(true);
       return;
     }
 
-    try {
-      const payload = await sendRpc<ChatParticipant>(this.authClient, 'auth.verify', decodeURIComponent(token));
-      (client.data as SocketData).user = { id: payload.id, role: payload.role };
-    } catch {
-      client.disconnect(true);
-    }
+    (client.data as SocketData).auth = sendRpc<ChatParticipant>(this.authClient, 'auth.verify', decodeURIComponent(token))
+      .then((payload) => ({ id: payload.id, role: payload.role }))
+      .catch(() => {
+        client.disconnect(true);
+        return null;
+      });
+  }
+
+  private async userOf(client: Socket) {
+    return (await (client.data as SocketData).auth) ?? null;
   }
 
   @SubscribeMessage('joinChat')
   async handleJoinChat(@ConnectedSocket() client: Socket, @MessageBody() chatId: unknown) {
-    const user = (client.data as SocketData).user;
+    const user = await this.userOf(client);
     if (!user || typeof chatId !== 'string' || !UUID_RE.test(chatId)) return;
 
     try {
@@ -80,7 +85,7 @@ export class ChatGateway implements OnGatewayConnection {
 
   @SubscribeMessage('sendMessage')
   async handleMessage(@ConnectedSocket() client: Socket, @MessageBody() payload: SendMessagePayload) {
-    const user = (client.data as SocketData).user;
+    const user = await this.userOf(client);
     const { chatId, content, fileUrl } = payload ?? {};
     const validFileUrl = typeof fileUrl === 'string' && fileUrl.startsWith('https://') ? fileUrl : undefined;
 
@@ -98,13 +103,16 @@ export class ChatGateway implements OnGatewayConnection {
 
     try {
       await this.chatAccess.assertCanSend(user, chatId);
-      const saved = await sendRpc(this.projectClient, 'chat.saveMessage', {
+      const saved = await sendRpc<Record<string, unknown>>(this.projectClient, 'chat.saveMessage', {
         chatId,
         senderId: user.id,
         content,
         fileUrl: validFileUrl,
       });
-      this.server.to(chatId).emit('newMessage', saved);
+      const [sender] = await sendRpc<{ name: string; avatarUrl: string | null }[]>(this.usersClient, 'users.getUsersByIds', { ids: [user.id] }).catch(
+        () => [],
+      );
+      this.server.to(chatId).emit('newMessage', { ...saved, senderName: sender?.name ?? null, senderAvatar: sender?.avatarUrl ?? null });
     } catch (error) {
       this.logger.warn(`Message rejected: ${error instanceof Error ? error.message : String(error)}`);
       client.emit('errorMessage', { error: 'send_failed' });
