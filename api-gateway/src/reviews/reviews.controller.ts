@@ -17,7 +17,7 @@ import { CurrentUser } from '../common/auth-user';
 import type { AuthUser } from '../common/auth-user';
 import { ProjectRecord, ProjectStatus } from '../common/project';
 import { sendRpc } from '../common/rpc';
-import { CreateReviewDto, ReviewsQueryDto } from './dto';
+import { CreateReviewDto, ReviewResponseDto, ReviewsQueryDto } from './dto';
 
 const REVIEWABLE_STATUSES: ProjectStatus[] = ['completed', 'closed'];
 
@@ -44,6 +44,10 @@ export class ReviewsController {
       throw new BadRequestException('A review can be left only after the project is completed');
     }
 
+    if (isClient && body.deadlines === undefined) {
+      throw new BadRequestException('"deadlines" is required in a review about a freelancer');
+    }
+
     return sendRpc(this.userClient, 'reviews.create', {
       ...body,
       projectTitle: project.title,
@@ -51,6 +55,13 @@ export class ReviewsController {
       authorRole: isClient ? 'client' : 'freelancer',
       targetId: isClient ? project.freelancerId : project.clientId,
     });
+  }
+
+  @Post(':id/response')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Answer a review about yourself' })
+  respond(@Param('id', ParseUUIDPipe) id: string, @Body() body: ReviewResponseDto, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.userClient, 'reviews.respond', { id, userId: user.id, text: body.text });
   }
 
   @Public()

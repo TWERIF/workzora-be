@@ -4,7 +4,8 @@ import { RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
-import { REVIEW_CRITERIA, Review } from './entities/review.entity';
+import { RespondReviewDto } from './dto';
+import { CLIENT_REVIEW_CRITERIA, REVIEW_CRITERIA, Review, type ReviewCriterion } from './entities/review.entity';
 
 export const MAX_REVIEW_LENGTH = 1000;
 
@@ -18,7 +19,7 @@ export interface CreateReviewPayload {
   professionalism: number;
   communication: number;
   price: number;
-  deadlines: number;
+  deadlines?: number;
   text: string;
   privateFeedback?: string;
 }
@@ -35,7 +36,8 @@ export class ReviewsService {
   ) { }
 
   async create(data: CreateReviewPayload) {
-    for (const key of REVIEW_CRITERIA) {
+    const criteria: readonly ReviewCriterion[] = data.authorRole === 'freelancer' ? CLIENT_REVIEW_CRITERIA : REVIEW_CRITERIA;
+    for (const key of criteria) {
       const value = Number(data[key]);
       if (!Number.isInteger(value) || value < 1 || value > 5) {
         throw rpcError(HttpStatus.BAD_REQUEST, `"${key}" must be an integer from 1 to 5`);
@@ -54,7 +56,7 @@ export class ReviewsService {
     });
     if (existing) throw rpcError(HttpStatus.CONFLICT, 'You have already reviewed this project');
 
-    const rating = REVIEW_CRITERIA.reduce((sum, key) => sum + Number(data[key]), 0) / REVIEW_CRITERIA.length;
+    const rating = criteria.reduce((sum: number, key) => sum + Number(data[key]), 0) / criteria.length;
 
     const saved = await this.dataSource.transaction(async (manager) => {
       const review = await manager.getRepository(Review).save(
@@ -68,7 +70,7 @@ export class ReviewsService {
           professionalism: Number(data.professionalism),
           communication: Number(data.communication),
           price: Number(data.price),
-          deadlines: Number(data.deadlines),
+          deadlines: data.authorRole === 'freelancer' ? 0 : Number(data.deadlines),
           rating,
           text,
           privateFeedback: privateFeedback || null,
@@ -126,6 +128,16 @@ export class ReviewsService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async respond({ id, userId, text }: RespondReviewDto) {
+    const review = await this.reviewRepository.findOne({ where: { id } });
+    if (!review) throw rpcError(HttpStatus.NOT_FOUND, 'Review not found');
+    if (review.targetId !== userId) throw rpcError(HttpStatus.FORBIDDEN, 'Only the reviewed user can respond');
+    review.response = text.trim();
+    review.respondedAt = new Date();
+    await this.reviewRepository.save(review);
+    return { id: review.id, response: review.response, respondedAt: review.respondedAt };
   }
 
   findMine(projectId: string, authorId: string) {

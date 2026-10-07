@@ -1,6 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { CreateReviewDto, FindByTargetDto, FindMineDto } from './dto';
+import { CreateReviewDto, FindByTargetDto, FindMineDto, RespondReviewDto } from './dto';
 import { ReviewsService } from './reviews.service';
 
 @Controller()
@@ -15,6 +15,11 @@ export class ReviewsController {
   @MessagePattern('reviews.findByTarget')
   findByTarget(@Payload() data: FindByTargetDto) {
     return this.reviewsService.findByTarget(data.targetId, data.page, data.limit);
+  }
+
+  @MessagePattern('reviews.respond')
+  respond(@Payload() data: RespondReviewDto) {
+    return this.reviewsService.respond(data);
   }
 
   @MessagePattern('reviews.findMine')
