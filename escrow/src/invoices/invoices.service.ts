@@ -1,3 +1,4 @@
+import { Notifier } from "../common/notifier";
 import { HttpStatus, Inject, Injectable, Logger } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -25,6 +26,7 @@ export class InvoicesService {
 
         @Inject('RABBIT_MQ_CLIENT')
         private readonly rabbitClient: ClientProxy,
+        private readonly notifier: Notifier,
     ) { }
 
     @Cron(CronExpression.EVERY_5_SECONDS)
@@ -230,26 +232,38 @@ export class InvoicesService {
     }
 
     private async payout(invoiceId: string): Promise<void> {
-        await this.dataSource.transaction(async (manager) => {
+        const paid = await this.dataSource.transaction(async (manager) => {
             const invoice = await manager.getRepository(Invoice).findOne({
                 where: { id: invoiceId },
                 lock: { mode: "pessimistic_write" },
             });
             if (!invoice) throw rpcError(HttpStatus.NOT_FOUND, "Invoice not found");
             if (invoice.status !== EscrowStatus.CAPTURED) {
-                return;
+                return null;
             }
 
+            const amountCents = invoice.amount - invoice.commissionAmount;
             await this.walletService.credit(manager, {
                 userId: invoice.freelancerId,
-                amountCents: invoice.amount - invoice.commissionAmount,
+                amountCents,
                 type: TransactionType.PROJECT_PAYOUT,
                 projectId: invoice.projectId,
             });
 
             invoice.status = EscrowStatus.PAID_OUT;
             await manager.getRepository(Invoice).save(invoice);
+            return { userId: invoice.freelancerId, amountCents };
         });
+
+        if (paid) {
+            this.notifier.notify({
+                userId: paid.userId,
+                type: "payments",
+                key: "paymentReceived",
+                params: { amount: (paid.amountCents / 100).toFixed(2) },
+                link: "/payment-data",
+            });
+        }
     }
 
     async stats({ from, to }: { from: string; to: string }) {

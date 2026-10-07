@@ -40,6 +40,7 @@ export class BidsController {
     @Inject('BIDS_SERVICE') private readonly bidsClient: ClientProxy,
     @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
     @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
+    @Inject('NOTIFICATIONS_SERVICE') private readonly notificationsClient: ClientProxy,
   ) {}
 
   @Post()
@@ -51,7 +52,18 @@ export class BidsController {
     if (project.status !== 'open') throw new BadRequestException('The project is not accepting proposals');
     if (project.clientId === user.id) throw new ForbiddenException('You cannot bid on your own project');
 
-    return sendRpc(this.bidsClient, 'bids.create', { ...data, userId: user.id });
+    const bid = await sendRpc(this.bidsClient, 'bids.create', { ...data, userId: user.id });
+    this.notificationsClient
+      .emit('notification.create', {
+        userId: project.clientId,
+        type: 'projects',
+        key: 'bidReceived',
+        params: { project: project.title },
+        link: `/activeProjects/discussion/${project.id}`,
+        dedupeKey: `bids:${project.id}`,
+      })
+      .subscribe({ error: () => undefined });
+    return bid;
   }
 
   @Get('project/:id')

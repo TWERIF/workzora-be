@@ -1,3 +1,4 @@
+import { Notifier } from '../common/notifier';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -27,7 +28,9 @@ export class ProjectsService {
     @Inject('ESCROW_SERVICE')
     private readonly escrowClient: ClientProxy,
 
-    private readonly chatService: ChatService
+    private readonly chatService: ChatService,
+
+    private readonly notifier: Notifier,
   ) { }
   async count() {
     try {
@@ -137,6 +140,14 @@ export class ProjectsService {
       const systemMessageContent = 'Вітаємо! Виконавець був обраний. Проект перейшов у статус очікування оплати. Будь ласка, зарезервуйте кошти для початку роботи.';
       await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
 
+      this.notifier.notify({
+        userId: data.freelancerId,
+        type: 'projects',
+        key: 'freelancerSelected',
+        params: { project: project.title },
+        link: `/chats/${project.id}`,
+      });
+
       return saved;
     } catch (error) {
       throw error;
@@ -161,6 +172,16 @@ export class ProjectsService {
 
       const systemMessageContent = 'Кошти зарезервовано, проект переведено до статусу виконання!';
       await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
+
+      if (project.freelancerId) {
+        this.notifier.notify({
+          userId: project.freelancerId,
+          type: 'payments',
+          key: 'fundsReserved',
+          params: { project: project.title },
+          link: `/chats/${project.id}`,
+        });
+      }
 
     } catch (error) {
       throw error;
@@ -195,6 +216,17 @@ export class ProjectsService {
 
     const systemMessageContent = 'Проект виконано, кошти зараховано на баланс виконавця. Тепер можете обмінятися відгуками.';
     await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
+
+    for (const userId of [project.clientId, project.freelancerId]) {
+      if (!userId) continue;
+      this.notifier.notify({
+        userId,
+        type: 'projects',
+        key: 'projectCompleted',
+        params: { project: project.title },
+        link: `/review/${project.id}`,
+      });
+    }
 
     return saved;
   }

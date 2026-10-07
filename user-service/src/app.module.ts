@@ -1,3 +1,4 @@
+import { NotifierModule } from './common/notifier';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -9,6 +10,7 @@ import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
+    NotifierModule,
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         type: 'postgres',
