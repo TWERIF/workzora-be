@@ -112,6 +112,9 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   roleSwitchedAt!: Date | null;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  lastSeenAt!: Date | null;
+
   @BeforeInsert()
   setCreatedAt() {
     this.createdAt = new Date();

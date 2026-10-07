@@ -47,10 +47,13 @@ const REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 const STRICT_LIMIT = { default: { limit: 10, ttl: 60_000 } };
 
 const SESSION_ONLY_COOKIE = 'session_only';
+const TOUCH_INTERVAL = 2 * 60 * 1000;
 @ApiTags('auth')
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
 export class AuthController {
+  private readonly lastTouch = new Map<string, number>();
+
   constructor(
     @Inject('AUTH_SERVICE') private readonly authClient: ClientProxy,
     @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
@@ -209,6 +212,11 @@ export class AuthController {
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Current user' })
   verifySession(@CurrentUser() user: AuthUser) {
+    const now = Date.now();
+    if ((this.lastTouch.get(user.id) ?? 0) < now - TOUCH_INTERVAL) {
+      this.lastTouch.set(user.id, now);
+      this.userClient.emit('users.touch', { id: user.id }).subscribe({ error: () => this.lastTouch.delete(user.id) });
+    }
     return user;
   }
 }

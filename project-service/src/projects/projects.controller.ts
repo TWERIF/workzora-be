@@ -1,6 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { AdminProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, IdDto, IdsDto, MyProjectsDto, StatsRangeDto, UpdateProjectDto, UserIdDto, UserPairDto } from './dto';
+import { AdminProjectsDto, ClientProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, IdDto, IdsDto, MyProjectsDto, StatsRangeDto, UpdateProjectDto, UserIdDto, UserPairDto } from './dto';
 import { ProjectsService } from './projects.service';
 
 @Controller()
@@ -20,6 +20,11 @@ export class ProjectsController {
   @MessagePattern('projects.userStats')
   userStats(@Payload() data: UserIdDto) {
     return this.projectsService.userStats(data);
+  }
+
+  @MessagePattern('projects.byClient')
+  byClient(@Payload() data: ClientProjectsDto) {
+    return this.projectsService.byClient(data);
   }
 
   @MessagePattern('projects.sharedProject')

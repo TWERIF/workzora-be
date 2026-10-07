@@ -266,6 +266,16 @@ export class InvoicesService {
         }
     }
 
+    async clientSpent(clientId: string) {
+        const row = await this.repo
+            .createQueryBuilder("invoice")
+            .select("COALESCE(SUM(invoice.amount), 0)", "cents")
+            .where("invoice.clientId = :clientId", { clientId })
+            .andWhere("invoice.status IN (:...statuses)", { statuses: [EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT] })
+            .getRawOne<{ cents: string }>();
+        return { spent: Number(row?.cents ?? 0) / 100 };
+    }
+
     async stats({ from, to }: { from: string; to: string }) {
         const earned = [EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT].map(String);
         const paid = [EscrowStatus.HELD, EscrowStatus.DISPUTED, EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT].map(String);

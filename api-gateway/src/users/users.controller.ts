@@ -8,7 +8,7 @@ import { CurrentUser } from '../common/auth-user';
 import type { AccountVerification, AuthUser } from '../common/auth-user';
 import { assertImage, IMAGE_UPLOAD_LIMIT } from '../common/files';
 import { sendRpc } from '../common/rpc';
-import { ProfilesPreviewQueryDto, TopClientsQueryDto, UpdateUserDto } from './dto';
+import { ClientProjectsQueryDto, ProfilesPreviewQueryDto, TopClientsQueryDto, UpdateUserDto } from './dto';
 
 interface TopClient {
   id: string;
@@ -30,6 +30,8 @@ export class UsersController {
     @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
     @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
     @Inject('KYC_SERVICE') private readonly kycClient: ClientProxy,
+    @Inject('BIDS_SERVICE') private readonly bidsClient: ClientProxy,
+    @Inject('INVOICES_SERVICE') private readonly invoicesClient: ClientProxy,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
@@ -161,10 +163,26 @@ export class UsersController {
   @Get(':id')
   @ApiOperation({ summary: 'Public profile with project stats' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    const [profile, stats] = await Promise.all([
+    const [profile, stats, spent] = await Promise.all([
       sendRpc<Record<string, unknown>>(this.userClient, 'users.getPublic', { id }),
       sendRpc<Record<string, number>>(this.projectClient, 'projects.userStats', { userId: id }).catch(() => null),
+      sendRpc<{ spent: number }>(this.invoicesClient, 'invoices.clientSpent', { clientId: id }).catch(() => null),
     ]);
-    return { ...profile, stats };
+    return { ...profile, stats: stats && { ...stats, spent: spent?.spent ?? 0 } };
+  }
+
+  @Public()
+  @Get(':id/projects')
+  @ApiOperation({ summary: 'Active or completed projects of a client' })
+  async clientProjects(@Param('id', ParseUUIDPipe) id: string, @Query() query: ClientProjectsQueryDto) {
+    const result = await sendRpc<{ data: { id: string }[] }>(this.projectClient, 'projects.byClient', {
+      clientId: id,
+      status: query.status,
+      page: query.page,
+      limit: Math.min(query.limit, 50),
+    });
+    const ids = result.data.map((project) => project.id);
+    const bids = ids.length ? await sendRpc<Record<string, number>>(this.bidsClient, 'bids.countByProjects', { ids }).catch(() => ({})) : {};
+    return { ...result, data: result.data.map((project) => ({ ...project, proposals: bids[project.id] ?? 0 })) };
   }
 }

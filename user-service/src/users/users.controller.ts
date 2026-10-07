@@ -1,5 +1,5 @@
 import { Controller, HttpStatus, Logger } from '@nestjs/common';
-import { MessagePattern, Payload, RpcException } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload, RpcException } from '@nestjs/microservices';
 import {
   ConfirmEmailDto,
   CreateUserDto,
@@ -161,6 +161,11 @@ export class UsersController {
   @MessagePattern('users.uploadAvatar')
   uploadAvatar(@Payload() data: UploadAvatarDto) {
     return this.userService.uploadImage(data);
+  }
+
+  @EventPattern('users.touch')
+  async touch(@Payload() data: IdDto) {
+    await this.userService.touch(data.id);
   }
 
   @MessagePattern('users.removeAvatar')

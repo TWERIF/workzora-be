@@ -4,6 +4,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsEnum,
+  IsIn,
   IsISO8601,
   IsInt,
   IsNumber,
@@ -185,4 +186,23 @@ export class PaymentsListDto extends PaginationDto {
 
   @IsString()
   role!: string;
+}
+
+export class ClientProjectsDto {
+  @IsUUID()
+  clientId!: string;
+
+  @IsIn(['active', 'completed'])
+  status!: 'active' | 'completed';
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit = 10;
 }
