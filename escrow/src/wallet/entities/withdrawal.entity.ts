@@ -21,6 +21,9 @@ export class Withdrawal {
     @Column()
     maskedCard!: string;
 
+    @Column({ type: "uuid", nullable: true })
+    cardId!: string | null;
+
     @Column({ type: "enum", enum: WithdrawalStatus, default: WithdrawalStatus.PROCESSING })
     status!: WithdrawalStatus;
 

@@ -91,7 +91,7 @@ export class WalletService {
         return rows.map(this.serializeWithdrawal);
     }
 
-    async createWithdrawal(params: { userId: string; amount: number; maskedCard: string }) {
+    async createWithdrawal(params: { userId: string; amount: number; maskedCard: string; cardId?: string }) {
         const amountCents = toCents(params.amount);
         if (!Number.isFinite(amountCents) || amountCents < toCents(MIN_WITHDRAWAL_USD)) {
             throw rpcError(HttpStatus.BAD_REQUEST, `Minimum withdrawal amount is $${MIN_WITHDRAWAL_USD}`);
@@ -111,6 +111,7 @@ export class WalletService {
                     userId: params.userId,
                     amount: amountCents,
                     maskedCard: params.maskedCard,
+                    cardId: params.cardId ?? null,
                 }),
             );
 

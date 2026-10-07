@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { Matches, registerDecorator, ValidationOptions } from 'class-validator';
+import { IsOptional, Matches, registerDecorator, ValidationOptions } from 'class-validator';
 
 const passesLuhn = (digits: string) => {
   let sum = 0;
@@ -34,4 +34,11 @@ export class CardDto {
   @Matches(/^\d{12,19}$/, { message: 'Card number must contain 12 to 19 digits' })
   @IsCardNumber()
   cardNumber!: string;
+}
+
+export class AddCardDto extends CardDto {
+  @ApiPropertyOptional({ example: '08/28', description: 'MM/YY' })
+  @IsOptional()
+  @Matches(/^(0[1-9]|1[0-2])\/\d{2}$/, { message: 'Expiry must look like MM/YY' })
+  expiry?: string;
 }

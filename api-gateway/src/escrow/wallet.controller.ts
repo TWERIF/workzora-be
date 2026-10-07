@@ -17,6 +17,7 @@ import {
 interface WithdrawalRecord {
   id: string;
   userId: string;
+  cardId?: string | null;
 }
 
 interface UserRecord {
@@ -24,6 +25,7 @@ interface UserRecord {
 }
 
 interface PaymentCard {
+  id: string;
   maskedCardNumber?: string;
 }
 
@@ -68,9 +70,11 @@ export class WalletController {
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Request a withdrawal to the linked card' })
   async createWithdrawal(@CurrentUser() user: AuthUser, @Body() body: CreateWithdrawalDto) {
-    const card = await sendRpc<PaymentCard | null>(this.userClient, 'paymentData.getByUserId', { userId: user.id }).catch(
-      () => null,
-    );
+    const card = await sendRpc<PaymentCard | null>(
+      this.userClient,
+      body.cardId ? 'paymentData.getCard' : 'paymentData.getByUserId',
+      body.cardId ? { userId: user.id, id: body.cardId } : { userId: user.id },
+    ).catch(() => null);
     if (!card?.maskedCardNumber) {
       throw new BadRequestException('Add a card before requesting a withdrawal');
     }
@@ -79,6 +83,7 @@ export class WalletController {
       userId: user.id,
       amount: body.amount,
       maskedCard: card.maskedCardNumber,
+      cardId: card.id,
     });
   }
 
@@ -108,7 +113,10 @@ export class WalletController {
 
     const [user, cardNumber] = await Promise.all([
       sendRpc(this.userClient, 'users.get', { id: withdrawal.userId }).catch(() => null),
-      sendRpc<string>(this.userClient, 'paymentData.getFullCardNumber', { userId: withdrawal.userId }).catch(() => null),
+      sendRpc<string>(this.userClient, 'paymentData.getFullCardNumber', {
+        userId: withdrawal.userId,
+        ...(withdrawal.cardId ? { cardId: withdrawal.cardId } : {}),
+      }).catch(() => null),
     ]);
 
     return { ...withdrawal, user, cardNumber };

@@ -62,6 +62,11 @@ export class CreateWithdrawalDto {
   @Min(10)
   @Max(1_000_000)
   amount!: number;
+
+  @ApiPropertyOptional({ description: 'Card to pay out to, the primary card when omitted' })
+  @IsOptional()
+  @IsUUID()
+  cardId?: string;
 }
 
 export class AdminWithdrawalsQueryDto extends PaginationQueryDto {
