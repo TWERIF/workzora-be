@@ -35,6 +35,7 @@ import {
 interface ClientSummary {
   id: string;
   firstName: string;
+  lastName?: string;
 }
 
 @ApiTags('projects')
@@ -74,12 +75,17 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Projects for the home page' })
   async getTopProjects() {
     const projects = await sendRpc<ProjectRecord[]>(this.projectClient, 'projects.getTopProjects', {});
+    return this.withClientNames(projects);
+  }
+
+  private async withClientNames<T extends { clientId: string }>(projects: T[]) {
     const clientIds = [...new Set(projects.map((project) => project.clientId))];
     const clients = await Promise.all(
       clientIds.map((id) => sendRpc<ClientSummary>(this.userClient, 'users.getPublic', { id }).catch(() => null)),
     );
-    const namesById = new Map(clients.filter((client): client is ClientSummary => !!client).map((c) => [c.id, c.firstName]));
-
+    const namesById = new Map(
+      clients.filter((client): client is ClientSummary => !!client).map((c) => [c.id, [c.firstName, c.lastName].filter(Boolean).join(' ')]),
+    );
     return projects.map((project) => ({ ...project, clientName: namesById.get(project.clientId) ?? null }));
   }
 
@@ -142,8 +148,9 @@ export class ProjectsController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'Open projects with search and filters' })
-  findProjects(@Query() query: FindProjectsQueryDto) {
-    return sendRpc(this.projectClient, 'projects.findProjects', query);
+  async findProjects(@Query() query: FindProjectsQueryDto) {
+    const result = await sendRpc<{ data: ProjectRecord[] }>(this.projectClient, 'projects.findProjects', query);
+    return { ...result, data: await this.withClientNames(result.data) };
   }
 
   @Roles('client')

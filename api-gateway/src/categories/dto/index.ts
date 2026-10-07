@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { PaginationQueryDto } from '../../common/pagination.dto';
 
 export class CreateCategoryDto {
@@ -13,6 +13,11 @@ export class CreateCategoryDto {
   @IsString()
   @MaxLength(1000)
   description!: string;
+
+  @ApiPropertyOptional({ description: 'Top-level category this specialization belongs to' })
+  @IsOptional()
+  @IsUUID()
+  parentId?: string;
 }
 
 export class UpdateCategoryDto extends PartialType(CreateCategoryDto) {}

@@ -22,6 +22,13 @@ export class CategoriesController {
   }
 
   @Public()
+  @Get('tree')
+  @ApiOperation({ summary: 'Categories with their specializations and open project counts' })
+  tree() {
+    return sendRpc(this.projectClient, 'categories.tree', {});
+  }
+
+  @Public()
   @Get('search')
   @ApiOperation({ summary: 'Search categories by title' })
   search(@Query() query: SearchCategoriesQueryDto) {

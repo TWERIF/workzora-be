@@ -1,3 +1,4 @@
+import type { CategoryTreeNode } from "../../category/model/types";
 import { api } from "@/shared/http";
 import type { CreateCategoriesDto } from "./types";
 
@@ -23,3 +24,4 @@ export const findOne = async (id: string) => {
 export const deleteOne = async (id: string) => {
     return (await api.delete(`/categories/${id}`)).data;
 }
+export const getTree = async (): Promise<CategoryTreeNode[]> => (await api.get<CategoryTreeNode[]>("/categories/tree")).data;

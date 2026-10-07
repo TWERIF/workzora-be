@@ -27,6 +27,11 @@ export class CategoriesController {
     return this.categoriesService.delete(data);
   }
 
+  @MessagePattern('categories.tree')
+  tree() {
+    return this.categoriesService.tree();
+  }
+
   @MessagePattern('categories.findAll')
   findAll(@Payload() data: CategoriesPageDto) {
     return this.categoriesService.findAll(data);
