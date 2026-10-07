@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -183,4 +183,10 @@ export class TopClientsQueryDto extends PaginationQueryDto {
   @Min(1, { each: true })
   @Max(5, { each: true })
   ratings?: number[];
+}
+
+export class ClientProjectsQueryDto extends PaginationQueryDto {
+  @ApiProperty({ enum: ['active', 'completed'] })
+  @IsIn(['active', 'completed'])
+  status!: 'active' | 'completed';
 }

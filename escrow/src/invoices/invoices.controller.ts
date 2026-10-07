@@ -1,6 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import {
+  ClientIdDto,
   ConfirmEscrowDto,
   CreateEscrowDto,
   IdDto,
@@ -21,6 +22,11 @@ export class InvoicesController {
   @MessagePattern('stats.earnings')
   stats(@Payload() range: StatsRangeDto) {
     return this.invoicesService.stats(range);
+  }
+
+  @MessagePattern('invoices.clientSpent')
+  clientSpent(@Payload() data: ClientIdDto) {
+    return this.invoicesService.clientSpent(data.clientId);
   }
 
   @MessagePattern('invoices.create')

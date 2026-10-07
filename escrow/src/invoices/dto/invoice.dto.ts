@@ -108,3 +108,8 @@ export class ResolveDisputeDto {
   @MaxLength(2000)
   note?: string;
 }
+
+export class ClientIdDto {
+  @IsUUID()
+  clientId!: string;
+}

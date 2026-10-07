@@ -19,7 +19,7 @@ import { UserRole } from '../types';
 
 const PUBLIC_USER_FIELDS: (keyof User)[] = [
   'id', 'firstName', 'lastName', 'username', 'role', 'skills', 'ratings', 'rates', 'rate',
-  'position', 'avatarUrl', 'bio', 'city', 'country', 'availability', 'createdAt',
+  'position', 'avatarUrl', 'bio', 'city', 'country', 'availability', 'createdAt', 'lastSeenAt',
 ];
 
 export interface TopClientsQuery {
@@ -329,5 +329,9 @@ export class UsersService implements OnModuleInit {
   async removeAvatar(id: string) {
     await this.userRepository.update(id, { avatarUrl: null });
     return { success: true };
+  }
+
+  async touch(id: string) {
+    await this.userRepository.update(id, { lastSeenAt: new Date() });
   }
 }

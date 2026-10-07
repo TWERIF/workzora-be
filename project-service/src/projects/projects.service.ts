@@ -7,7 +7,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { Category } from '../categories/entities/category.entity';
 import { ChatService } from '../chat/chat.service';
-import { AdminProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, IdDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import { AdminProjectsDto, ClientProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, IdDto, MyProjectsDto, UpdateProjectDto } from './dto';
 import { Project, ProjectStatus } from './entities/project.entity';
 
 @Injectable()
@@ -417,6 +417,37 @@ export class ProjectsService {
       count({ clientId: userId, status: ProjectStatus.COMPLETED }),
     ]);
     return { completedAsFreelancer, takenAsFreelancer, posted, completedAsClient };
+  }
+
+  async byClient({ clientId, status, page, limit }: ClientProjectsDto) {
+    const statuses =
+      status === 'completed'
+        ? [ProjectStatus.COMPLETED]
+        : [ProjectStatus.OPEN, ProjectStatus.AWAITING_PAYMENT, ProjectStatus.IN_PROGRESS];
+    const [items, total] = await this.projectRepository.findAndCount({
+      where: { clientId, status: In(statuses) },
+      relations: { categories: true },
+      order: { updatedAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return {
+      data: items.map((project) => ({
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        price: Number(project.price),
+        tags: project.tags,
+        views: project.views,
+        status: project.status,
+        createdAt: project.createdAt,
+        categories: project.categories.map((category) => ({ id: category.id, title: category.title })),
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
   }
 
   async sharedProject({ userId, otherId }: { userId: string; otherId: string }) {
