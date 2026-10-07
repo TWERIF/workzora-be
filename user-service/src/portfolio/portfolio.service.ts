@@ -3,7 +3,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { firstValueFrom } from 'rxjs';
 import { In, Repository } from 'typeorm';
-import { CreatePortfolioDto, DeletePortfolioDto, PaginationDto, UpdatePortfolioDto } from './dto';
+import { CreatePortfolioDto, DeletePortfolioDto, PaginationDto, PortfolioIdDto, UpdatePortfolioDto } from './dto';
 import { Portfolio } from './entities/portfolio.entity';
 
 export interface PortfolioAuthor {
@@ -39,6 +39,11 @@ export class PortfolioService {
   async delete({ id, userId }: DeletePortfolioDto) {
     const existing = await this.getOwned(id, userId);
     await this.portfolioRepository.remove(existing);
+    return { success: true };
+  }
+
+  async addView({ id }: PortfolioIdDto) {
+    await this.portfolioRepository.increment({ id }, 'views', 1);
     return { success: true };
   }
 

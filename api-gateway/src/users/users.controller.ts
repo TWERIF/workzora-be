@@ -1,16 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Inject,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Put,
-  Query,
-  UploadedFile,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -130,10 +118,53 @@ export class UsersController {
     return sendRpc(this.userClient, 'users.uploadAvatar', { userId: user.id, avatarUrl });
   }
 
+  @Delete('avatar')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Remove own avatar' })
+  removeAvatar(@CurrentUser() user: AuthUser) {
+    return sendRpc(this.userClient, 'users.removeAvatar', { id: user.id });
+  }
+
+  @Get('blocked')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Users I have blocked' })
+  blocked(@CurrentUser() user: AuthUser) {
+    return sendRpc(this.userClient, 'users.blockedList', { userId: user.id });
+  }
+
+  @Get(':id/relation')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Block status and shared project with another user' })
+  async relation(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    const [block, shared] = await Promise.all([
+      sendRpc<{ blockedByMe: boolean; blockedMe: boolean }>(this.userClient, 'users.blockStatus', { userId: user.id, otherId: id }),
+      sendRpc<{ projectId: string | null }>(this.projectClient, 'projects.sharedProject', { userId: user.id, otherId: id }),
+    ]);
+    return { ...block, sharedProjectId: shared.projectId };
+  }
+
+  @Post(':id/block')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Block a user' })
+  block(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.userClient, 'users.block', { userId: user.id, blockedId: id });
+  }
+
+  @Delete(':id/block')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Unblock a user' })
+  unblock(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.userClient, 'users.unblock', { userId: user.id, blockedId: id });
+  }
+
   @Public()
   @Get(':id')
-  @ApiOperation({ summary: 'Public profile' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return sendRpc(this.userClient, 'users.getPublic', { id });
+  @ApiOperation({ summary: 'Public profile with project stats' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    const [profile, stats] = await Promise.all([
+      sendRpc<Record<string, unknown>>(this.userClient, 'users.getPublic', { id }),
+      sendRpc<Record<string, number>>(this.projectClient, 'projects.userStats', { userId: id }).catch(() => null),
+    ]);
+    return { ...profile, stats };
   }
 }

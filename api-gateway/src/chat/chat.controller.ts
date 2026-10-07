@@ -97,7 +97,7 @@ export class ChatController {
     @Body() body: SendMessageDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await this.chatAccess.assertParticipant(user, { chatId });
+    await this.chatAccess.assertCanSend(user, chatId);
     return sendRpc(this.projectClient, 'chat.saveMessage', { ...body, chatId, senderId: user.id });
   }
 

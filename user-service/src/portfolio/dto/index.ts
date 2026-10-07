@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsOptional, IsString, IsUrl, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, IsUrl, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreatePortfolioDto {
   @IsUUID()
@@ -16,6 +16,13 @@ export class CreatePortfolioDto {
 
   @IsUrl({ protocols: ['https'], require_protocol: true })
   imageUrl!: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @MaxLength(30, { each: true })
+  tags?: string[];
 }
 
 export class UpdatePortfolioDto {
@@ -39,6 +46,18 @@ export class UpdatePortfolioDto {
   @IsOptional()
   @IsUrl({ protocols: ['https'], require_protocol: true })
   imageUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @MaxLength(30, { each: true })
+  tags?: string[];
+}
+
+export class PortfolioIdDto {
+  @IsUUID()
+  id!: string;
 }
 
 export class DeletePortfolioDto {

@@ -402,6 +402,35 @@ export class ProjectsService {
     };
   }
 
+  async userStats({ userId }: { userId: string }) {
+    const count = (where: Partial<Record<'clientId' | 'freelancerId', string>> & { status?: ProjectStatus }) =>
+      this.projectRepository.count({ where });
+    const [completedAsFreelancer, takenAsFreelancer, posted, completedAsClient] = await Promise.all([
+      count({ freelancerId: userId, status: ProjectStatus.COMPLETED }),
+      this.projectRepository.count({
+        where: [
+          { freelancerId: userId, status: ProjectStatus.IN_PROGRESS },
+          { freelancerId: userId, status: ProjectStatus.COMPLETED },
+        ],
+      }),
+      count({ clientId: userId }),
+      count({ clientId: userId, status: ProjectStatus.COMPLETED }),
+    ]);
+    return { completedAsFreelancer, takenAsFreelancer, posted, completedAsClient };
+  }
+
+  async sharedProject({ userId, otherId }: { userId: string; otherId: string }) {
+    const project = await this.projectRepository.findOne({
+      where: [
+        { clientId: userId, freelancerId: otherId },
+        { clientId: otherId, freelancerId: userId },
+      ],
+      order: { updatedAt: 'DESC' },
+      select: { id: true, status: true },
+    });
+    return { projectId: project?.id ?? null };
+  }
+
   async countActiveDeals({ userId }: { userId: string }) {
     const asClient = await this.projectRepository.count({
       where: [

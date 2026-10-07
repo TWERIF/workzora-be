@@ -19,6 +19,10 @@ export const WORK_TYPES = ['FULLTIME', 'PARTTIME', 'FLEXIBLE'] as const;
 export const BUDGET_TYPES = ['HOURLY', 'FIXED'] as const;
 export const PROJECT_SIZES = ['SMALL', 'MEDIUM', 'LARGE'] as const;
 export const AVAILABILITY = ['AVAILABLE', 'OPENTOOFFERS', 'BUSY', 'NOTAVAILABLE'] as const;
+export const RATE_TYPES = ['STANDARD', 'FROM'] as const;
+export const PROJECT_TYPES = ['ONE_TIME', 'ONGOING', 'LONG_TERM', 'CONSULTATIONS'] as const;
+export const BUDGET_RANGES = ['UNDER_500', 'FROM_500_TO_1000', 'FROM_1000_TO_3000', 'OVER_3000'] as const;
+export const WORK_FORMATS = ['REMOTE', 'PARTTIME', 'FULLTIME', 'FLEXIBLE'] as const;
 
 export class UpdateUserDto {
   @ApiPropertyOptional()
@@ -114,6 +118,32 @@ export class UpdateUserDto {
   @IsOptional()
   @IsIn(PROJECT_SIZES)
   preferredProjectSize?: string;
+
+  @ApiPropertyOptional({ enum: RATE_TYPES })
+  @IsOptional()
+  @IsIn(RATE_TYPES)
+  rateType?: string;
+
+  @ApiPropertyOptional({ maxLength: 200 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  rateNote?: string;
+
+  @ApiPropertyOptional({ enum: PROJECT_TYPES })
+  @IsOptional()
+  @IsIn(PROJECT_TYPES)
+  projectType?: string;
+
+  @ApiPropertyOptional({ enum: BUDGET_RANGES })
+  @IsOptional()
+  @IsIn(BUDGET_RANGES)
+  budgetRange?: string;
+
+  @ApiPropertyOptional({ enum: WORK_FORMATS })
+  @IsOptional()
+  @IsIn(WORK_FORMATS)
+  workFormat?: string;
 
   @ApiPropertyOptional({ enum: ['client', 'freelancer'], description: 'Only once, right after sign-up' })
   @IsOptional()

@@ -97,6 +97,7 @@ export class ChatGateway implements OnGatewayConnection {
     }
 
     try {
+      await this.chatAccess.assertCanSend(user, chatId);
       const saved = await sendRpc(this.projectClient, 'chat.saveMessage', {
         chatId,
         senderId: user.id,
