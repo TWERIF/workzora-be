@@ -26,6 +26,7 @@ import {
   AdminProjectsQueryDto,
   AwaitingPaymentDto,
   CreateProjectDto,
+  FeaturedDto,
   FindProjectsQueryDto,
   MyProjectsQueryDto,
   SearchQueryDto,
@@ -171,6 +172,14 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Complete the project and release the escrow to the freelancer' })
   toCompleted(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return sendRpc(this.projectClient, 'projects.toInCompleted', { id, clientId: user.id });
+  }
+
+  @Roles('admin')
+  @Patch(':id/featured')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Feature a project in the top list (admin)' })
+  setFeatured(@Param('id', ParseUUIDPipe) id: string, @Body() body: FeaturedDto) {
+    return sendRpc(this.projectClient, 'projects.setFeatured', { id, isFeatured: body.isFeatured });
   }
 
   @Roles('admin')

@@ -1,6 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { AdminProjectsDto, ClientProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FindProjectsDto, IdDto, IdsDto, MyProjectsDto, StatsRangeDto, UpdateProjectDto, UserIdDto, UserPairDto } from './dto';
+import { AdminProjectsDto, ClientProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FeaturedDto, FindProjectsDto, IdDto, IdsDto, MyProjectsDto, StatsRangeDto, UpdateProjectDto, UserIdDto, UserPairDto } from './dto';
 import { ProjectsService } from './projects.service';
 
 @Controller()
@@ -100,6 +100,11 @@ export class ProjectsController {
   @MessagePattern('projects.lastByClients')
   lastByClients(@Payload() data: IdsDto) {
     return this.projectsService.findLastByClients(data.ids);
+  }
+
+  @MessagePattern('projects.setFeatured')
+  setFeatured(@Payload() data: FeaturedDto) {
+    return this.projectsService.setFeatured(data);
   }
 
   @MessagePattern('projects.toClosed')

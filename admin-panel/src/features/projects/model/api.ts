@@ -16,6 +16,10 @@ export const deleteProject = async (id: string) => {
     return (await api.delete(`/projects/${id}`)).data;
 };
 
+export const setFeatured = async ({ id, isFeatured }: { id: string; isFeatured: boolean }) => {
+    return (await api.patch(`/projects/${id}/featured`, { isFeatured })).data;
+};
+
 export const closeProject = async (id: string) => {
     return (await api.patch(`/projects/${id}/closed`)).data;
 };

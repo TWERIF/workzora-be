@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AdminProject, ProjectStatus } from "@/features/projects/model/types";
-import { useAdminProjects, useCloseProject, useDeleteProject } from "@/features/projects/model/useProjects";
+import { useAdminProjects, useCloseProject, useDeleteProject, useSetFeatured } from "@/features/projects/model/useProjects";
 import { PROJECT_STATUS_LABELS, ProjectRow } from "@/features/projects/ui/ProjectRow";
 import DeleteDialog from "@/shared/components/DeleteDialog";
 import Pagination from "@/shared/components/Pagination";
@@ -29,7 +29,8 @@ export default function ProjectsPage() {
     const { data, isLoading, isFetching } = useAdminProjects({ status, search: search || undefined, page, limit: LIMIT });
     const deleteMutation = useDeleteProject();
     const closeMutation = useCloseProject();
-    const isBusy = deleteMutation.isPending || closeMutation.isPending;
+    const featuredMutation = useSetFeatured();
+    const isBusy = deleteMutation.isPending || closeMutation.isPending || featuredMutation.isPending;
 
     const projects = data?.data ?? [];
 
@@ -48,6 +49,15 @@ export default function ProjectsPage() {
         setActionError(null);
         try {
             await closeMutation.mutateAsync(project.id);
+        } catch (error) {
+            setActionError(errorMessage(error));
+        }
+    };
+
+    const handleToggleFeatured = async (project: AdminProject) => {
+        setActionError(null);
+        try {
+            await featuredMutation.mutateAsync({ id: project.id, isFeatured: !project.isFeatured });
         } catch (error) {
             setActionError(errorMessage(error));
         }
@@ -127,6 +137,7 @@ export default function ProjectsPage() {
                                     isBusy={isBusy}
                                     onDelete={setToDelete}
                                     onClose={handleClose}
+                                    onToggleFeatured={handleToggleFeatured}
                                 />
                             ))}
                         </tbody>

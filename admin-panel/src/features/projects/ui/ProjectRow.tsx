@@ -19,13 +19,18 @@ interface ProjectRowProps {
     isBusy: boolean;
     onDelete: (project: AdminProject) => void;
     onClose: (project: AdminProject) => void;
+    onToggleFeatured: (project: AdminProject) => void;
 }
 
-export function ProjectRow({ project, isBusy, onDelete, onClose }: ProjectRowProps) {
+export function ProjectRow({ project, isBusy, onDelete, onClose, onToggleFeatured }: ProjectRowProps) {
     return (
         <tr className="border-b border-border last:border-0">
             <td className="py-3 pr-4">
-                <p className="font-medium text-foreground">{project.title}</p>
+                <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                    {project.title}
+                    {project.isFeatured && <Badge>Featured</Badge>}
+                    {project.isUrgent && <Badge variant="secondary">ASAP</Badge>}
+                </p>
                 <p className="text-xs text-muted-foreground">
                     {project.categories.map((category) => category.title).join(", ") || "—"}
                 </p>
@@ -38,6 +43,11 @@ export function ProjectRow({ project, isBusy, onDelete, onClose }: ProjectRowPro
             <td className="py-3 pr-4 text-muted-foreground">{formatDate(project.createdAt)}</td>
             <td className="py-3">
                 <div className="flex justify-end gap-2">
+                    {project.status === "open" && (
+                        <Button size="sm" variant="outline" disabled={isBusy} onClick={() => onToggleFeatured(project)}>
+                            {project.isFeatured ? "Прибрати з топу" : "У топ"}
+                        </Button>
+                    )}
                     {CLOSABLE.includes(project.status) && (
                         <Button size="sm" variant="outline" disabled={isBusy} onClick={() => onClose(project)}>
                             Закрити
