@@ -9,6 +9,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -91,6 +92,13 @@ export class UpdateUserDto {
   @MaxLength(60, { each: true })
   skills?: string[];
 
+  @ApiPropertyOptional({ type: [String], description: 'Up to 5 category or specialization ids' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsUUID('4', { each: true })
+  specializations?: string[];
+
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
@@ -164,6 +172,27 @@ export class ProfilesPreviewQueryDto {
   @Min(1)
   @Max(50)
   amount?: number;
+}
+
+export class FreelancersQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  search?: string;
+
+  @ApiPropertyOptional({ description: 'Category id' })
+  @IsOptional()
+  @IsUUID('4')
+  category?: string;
+
+  @ApiPropertyOptional({ description: 'Comma separated specialization ids' })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.split(',').filter(Boolean) : value))
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('4', { each: true })
+  specializations?: string[];
 }
 
 export class TopClientsQueryDto extends PaginationQueryDto {

@@ -9,6 +9,7 @@ import {
   IsInt,
   IsNumber,
   IsOptional,
+  IsObject,
   IsString,
   IsUrl,
   IsUUID,
@@ -162,6 +163,12 @@ export class UpdateUserDto {
   skills?: string[];
 
   @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsUUID('4', { each: true })
+  specializations?: string[];
+
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
@@ -258,6 +265,35 @@ export class SwitchRoleDto {
   @IsInt()
   @Min(0)
   activeDeals!: number;
+}
+
+export class FreelancersQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  categoryIds?: string[];
+}
+
+export class SpecializationCountsDto {
+  @IsObject()
+  groups!: Record<string, string[]>;
 }
 
 export class TopClientsQueryDto {

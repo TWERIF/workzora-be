@@ -14,6 +14,8 @@ import {
   ProfilesPreviewDto,
   RegisterUserDto,
   SwitchRoleDto,
+  FreelancersQueryDto,
+  SpecializationCountsDto,
   TopClientsQueryDto,
   UpdateUserDto,
   UploadAvatarDto,
@@ -151,6 +153,16 @@ export class UsersController {
   @MessagePattern('users.findTopClientsPaged')
   findTopClientsPaged(@Payload() data: TopClientsQueryDto) {
     return this.userService.findTopClientsPaged(data);
+  }
+
+  @MessagePattern('users.findFreelancers')
+  findFreelancers(@Payload() data: FreelancersQueryDto) {
+    return this.userService.findFreelancers(data);
+  }
+
+  @MessagePattern('users.specializationCounts')
+  specializationCounts(@Payload() data: SpecializationCountsDto) {
+    return this.userService.specializationCounts(data.groups);
   }
 
   @MessagePattern('users.findTopFreelancers')

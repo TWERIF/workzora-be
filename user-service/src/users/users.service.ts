@@ -18,7 +18,7 @@ import { ReviewsService } from '../reviews/reviews.service';
 import { UserRole } from '../types';
 
 const PUBLIC_USER_FIELDS: (keyof User)[] = [
-  'id', 'firstName', 'lastName', 'username', 'role', 'skills', 'ratings', 'rates', 'rate',
+  'id', 'firstName', 'lastName', 'username', 'role', 'skills', 'specializations', 'ratings', 'rates', 'rate',
   'position', 'avatarUrl', 'bio', 'city', 'country', 'availability', 'createdAt', 'lastSeenAt',
 ];
 
@@ -27,6 +27,13 @@ export interface TopClientsQuery {
   limit?: number;
   search?: string;
   ratings?: number[];
+}
+
+export interface FreelancersQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  categoryIds?: string[];
 }
 
 export const ROLE_SWITCH_DAYS = 7;
@@ -293,6 +300,56 @@ export class UsersService implements OnModuleInit {
       totalPages: Math.ceil(total / limit),
       ratingCounts,
     };
+  }
+
+  async findFreelancers({ page = 1, limit = 10, search, categoryIds }: FreelancersQuery) {
+    page = Number(page) || 1;
+    limit = Number(limit) || 10;
+
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .select(PUBLIC_USER_FIELDS.map((field) => `user.${field}`))
+      .where('user.role = :role', { role: UserRole.FREELANCER });
+
+    if (search?.trim()) {
+      qb.andWhere(
+        "(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.username ILIKE :search OR user.position ILIKE :search OR CONCAT(user.firstName, ' ', user.lastName) ILIKE :search)",
+        { search: `%${search.trim()}%` },
+      );
+    }
+    if (categoryIds?.length) qb.andWhere('user.specializations && CAST(:categoryIds AS uuid[])', { categoryIds });
+
+    const [users, total] = await qb
+      .orderBy('user.ratings', 'DESC')
+      .addOrderBy('user.createdAt', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    const latest = await this.portfolioService.findLatestByUserIds(users.map((user) => user.id));
+
+    return {
+      data: users.map((user) => ({ ...user, portfolio: latest[user.id] ?? null })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async specializationCounts(groups: Record<string, string[]>) {
+    const entries = await Promise.all(
+      Object.entries(groups).map(async ([key, ids]) => {
+        if (!ids.length) return [key, 0] as const;
+        const count = await this.userRepository
+          .createQueryBuilder('user')
+          .where('user.role = :role', { role: UserRole.FREELANCER })
+          .andWhere('user.specializations && CAST(:ids AS uuid[])', { ids })
+          .getCount();
+        return [key, count] as const;
+      }),
+    );
+    return Object.fromEntries(entries);
   }
 
   async findTopFreelancers() {
