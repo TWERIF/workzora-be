@@ -33,6 +33,10 @@ export class CreateWithdrawalDto extends UserIdDto {
   @IsString()
   @MaxLength(40)
   maskedCard!: string;
+
+  @IsOptional()
+  @IsUUID()
+  cardId?: string;
 }
 
 export class AdminWithdrawalsDto {

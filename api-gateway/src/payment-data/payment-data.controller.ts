@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, HttpException, HttpStatus, Inject, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, HttpException, HttpStatus, Inject, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles, RolesGuard } from '../auth/guards/role-guard';
@@ -6,7 +6,7 @@ import { CurrentUser, UserRole } from '../common/auth-user';
 import type { AuthUser } from '../common/auth-user';
 import { PaginationQueryDto } from '../common/pagination.dto';
 import { sendRpc } from '../common/rpc';
-import { CardDto } from './dto';
+import { AddCardDto, CardDto } from './dto';
 
 @ApiTags('payment-data')
 @ApiCookieAuth()
@@ -42,6 +42,30 @@ export class PaymentDataController {
   @ApiOperation({ summary: 'Replace the payout card' })
   update(@Body() data: CardDto, @CurrentUser() user: AuthUser) {
     return sendRpc(this.paymentDataClient, 'paymentData.update', { ...data, userId: user.id });
+  }
+
+  @Get('cards')
+  @ApiOperation({ summary: 'Own linked cards, primary first' })
+  cards(@CurrentUser() user: AuthUser) {
+    return sendRpc(this.paymentDataClient, 'paymentData.list', { userId: user.id });
+  }
+
+  @Post('cards')
+  @ApiOperation({ summary: 'Link a card (up to 5)' })
+  addCard(@Body() data: AddCardDto, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.paymentDataClient, 'paymentData.add', { ...data, userId: user.id });
+  }
+
+  @Patch('cards/:id/primary')
+  @ApiOperation({ summary: 'Make a card primary' })
+  setPrimary(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.paymentDataClient, 'paymentData.setPrimary', { id, userId: user.id });
+  }
+
+  @Delete('cards/:id')
+  @ApiOperation({ summary: 'Remove a card' })
+  removeCard(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.paymentDataClient, 'paymentData.remove', { id, userId: user.id });
   }
 
   @Get(':userId')

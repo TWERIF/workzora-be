@@ -1,13 +1,7 @@
-import {
-    Column,
-    CreateDateColumn,
-    Entity,
-    PrimaryGeneratedColumn,
-    UpdateDateColumn
-} from 'typeorm';
-
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity({ name: 'payment_datas', schema: 'payment_data' })
+@Index(['userId'])
 export class PaymentData {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
@@ -25,7 +19,16 @@ export class PaymentData {
     cardNumberAuthTag!: string;
 
     @Column()
-    maskedCardNumber!: string; 
+    maskedCardNumber!: string;
+
+    @Column({ type: 'varchar', length: 20, default: 'card' })
+    brand!: string;
+
+    @Column({ type: 'varchar', length: 5, nullable: true })
+    expiry!: string | null;
+
+    @Column({ default: false })
+    isPrimary!: boolean;
 
     @UpdateDateColumn()
     updatedAt!: Date;
