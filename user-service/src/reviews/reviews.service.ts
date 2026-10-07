@@ -1,3 +1,4 @@
+import { Notifier } from '../common/notifier';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -30,6 +31,7 @@ export class ReviewsService {
     private readonly dataSource: DataSource,
     @InjectRepository(Review) private readonly reviewRepository: Repository<Review>,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
+    private readonly notifier: Notifier,
   ) { }
 
   async create(data: CreateReviewPayload) {
@@ -87,6 +89,19 @@ export class ReviewsService {
       });
 
       return review;
+    });
+
+    const author = await this.userRepository.findOne({ where: { id: data.authorId }, select: { id: true, firstName: true, lastName: true } });
+    this.notifier.notify({
+      userId: data.targetId,
+      type: 'projects',
+      key: 'reviewReceived',
+      params: {
+        name: [author?.firstName, author?.lastName].filter(Boolean).join(' '),
+        rating: Math.round(rating * 10) / 10,
+        project: saved.projectTitle,
+      },
+      link: `/public-profile/${data.targetId}`,
     });
 
     const { privateFeedback: _hidden, ...publicReview } = saved;

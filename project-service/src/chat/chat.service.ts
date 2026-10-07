@@ -1,3 +1,4 @@
+import { Notifier } from '../common/notifier';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -36,6 +37,7 @@ export class ChatService {
     private readonly projectRepo: Repository<Project>,
     @Inject('USERS_CLIENT')
     private readonly userClient: ClientProxy,
+    private readonly notifier: Notifier,
   ) {}
 
   async findOrCreateChat(projectId: string) {
@@ -130,6 +132,7 @@ export class ChatService {
     });
     const saved = await this.messageRepo.save(message);
     await this.chatRoomRepo.update(chatId, { updatedAt: new Date() });
+    if (saved.receiverId) void this.notifyNewMessage(saved.receiverId, senderId, access.projectId, chatId);
     return saved;
   }
 
@@ -156,6 +159,21 @@ export class ChatService {
     return this.messageRepo.save(
       this.messageRepo.create({ chatId, projectId, senderId: null, receiverId: null, content, isSystemMessage: true }),
     );
+  }
+
+  private async notifyNewMessage(receiverId: string, senderId: string, projectId: string, chatId: string) {
+    const [users, project] = await Promise.all([
+      this.loadUsers([senderId]),
+      this.projectRepo.findOne({ where: { id: projectId }, select: { id: true, title: true } }),
+    ]);
+    this.notifier.notify({
+      userId: receiverId,
+      type: 'messages',
+      key: 'newMessage',
+      params: { name: users.get(senderId)?.name ?? '', project: project?.title ?? '' },
+      link: `/chats/${projectId}`,
+      dedupeKey: `chat:${chatId}`,
+    });
   }
 
   private async loadUsers(ids: string[]) {

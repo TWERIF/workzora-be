@@ -1,3 +1,4 @@
+import { Notifier } from "../common/notifier";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { RpcException } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -20,6 +21,7 @@ export class WalletService {
         @InjectRepository(Wallet) private readonly walletRepo: Repository<Wallet>,
         @InjectRepository(WalletTransaction) private readonly txRepo: Repository<WalletTransaction>,
         @InjectRepository(Withdrawal) private readonly withdrawalRepo: Repository<Withdrawal>,
+        private readonly notifier: Notifier,
     ) { }
 
     private async lockWallet(manager: EntityManager, userId: string): Promise<Wallet> {
@@ -162,6 +164,7 @@ export class WalletService {
             return manager.getRepository(Withdrawal).save(row);
         });
 
+        this.notifyWithdrawal(withdrawal, "withdrawalCompleted");
         return this.serializeWithdrawal(withdrawal);
     }
 
@@ -191,7 +194,18 @@ export class WalletService {
             return row;
         });
 
+        this.notifyWithdrawal(withdrawal, "withdrawalRejected");
         return this.serializeWithdrawal(withdrawal);
+    }
+
+    private notifyWithdrawal(withdrawal: Withdrawal, key: "withdrawalCompleted" | "withdrawalRejected") {
+        this.notifier.notify({
+            userId: withdrawal.userId,
+            type: "payments",
+            key,
+            params: { amount: (withdrawal.amount / 100).toFixed(2) },
+            link: "/payment-data",
+        });
     }
 
     private async lockProcessingWithdrawal(manager: EntityManager, id: string) {

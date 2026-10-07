@@ -10,6 +10,7 @@ export const QUEUES = {
   SEARCH_SERVICE: 'search_queue',
   INVOICES_SERVICE: 'escrow_queue',
   SUPPORT_SERVICE: 'support_queue',
+  NOTIFICATIONS_SERVICE: 'notifications_queue',
 } as const;
 
 export type ServiceName = keyof typeof QUEUES;

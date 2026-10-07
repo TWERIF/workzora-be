@@ -1,3 +1,4 @@
+import { Notifier } from '../common/notifier';
 import {
   HttpStatus,
   Injectable,
@@ -38,6 +39,7 @@ export class UsersService implements OnModuleInit {
     private readonly userRepository: Repository<User>,
     private readonly portfolioService: PortfolioService,
     private readonly reviewsService: ReviewsService,
+    private readonly notifier: Notifier,
   ) { }
 
   async createUser(data: Partial<User>): Promise<User> {
@@ -52,7 +54,11 @@ export class UsersService implements OnModuleInit {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    return this.userRepository.save(this.userRepository.create({ ...data, password: hashedPassword }));
+    const user = await this.userRepository.save(this.userRepository.create({ ...data, password: hashedPassword }));
+    if (user.role !== 'admin') {
+      this.notifier.notify({ userId: user.id, type: 'system', key: 'welcome', link: '/knowledgebase' });
+    }
+    return user;
   }
 
   async findOrCreate(profile: { email: string; name?: string; avatar?: string }) {
