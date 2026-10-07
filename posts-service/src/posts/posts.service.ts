@@ -11,6 +11,8 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { Post } from './entities/post.entity';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { slugify } from './slug.util';
+import { GetPostsDto } from './dto/get-posts.dto';
+import { normalizeTag, POST_TAGS } from './tags';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,6 +26,8 @@ export class PostsService implements OnModuleInit {
 
         @Inject('SEARCH_CLIENT')
         private readonly searchClient: ClientProxy,
+        @Inject('EMAIL_CLIENT')
+        private readonly emailClient: ClientProxy,
     ) { }
 
     async onModuleInit() {
@@ -37,6 +41,9 @@ export class PostsService implements OnModuleInit {
             this.searchClient.emit("post.updated", post);
         }
         if (posts.length) this.logger.log(`Generated slugs for ${posts.length} posts`);
+
+        const legacy = (await this.postsRepository.find()).filter((post) => !(POST_TAGS as readonly string[]).includes(post.tag));
+        for (const post of legacy) await this.postsRepository.update(post.id, { tag: normalizeTag(post.tag) });
     }
 
     private async uniqueSlug(title: string, excludeId?: string): Promise<string> {
@@ -72,6 +79,7 @@ export class PostsService implements OnModuleInit {
             });
             const saved = await this.postsRepository.save(post);
             this.searchClient.emit("post.created", saved);
+            this.emailClient.emit("post.published", { title: saved.title, slug: saved.slug, teaser: saved.teaser, imageUrl: saved.imageUrl });
             return saved;
         } catch (error) {
             throw error;
@@ -122,9 +130,10 @@ export class PostsService implements OnModuleInit {
         }
     }
 
-    async getAll(page = 1, limit = 10) {
+    async getAll({ page = 1, limit = 10, tag, exclude }: GetPostsDto) {
         try {
             const [posts, total] = await this.postsRepository.findAndCount({
+                where: { ...(tag ? { tag } : {}), ...(exclude ? { id: Not(exclude) } : {}) },
                 order: {
                     createdAt: 'DESC',
                 },
@@ -142,6 +151,15 @@ export class PostsService implements OnModuleInit {
         } catch (error) {
             throw error;
         }
+    }
+
+    getPopular(): Promise<Post[]> {
+        return this.postsRepository.find({ order: { views: 'DESC', createdAt: 'DESC' }, take: 5 });
+    }
+
+    async addView(id: string) {
+        await this.postsRepository.increment({ id }, 'views', 1);
+        return { success: true };
     }
 
     async getLatestThree(): Promise<Post[]> {

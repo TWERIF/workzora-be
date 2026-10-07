@@ -1,4 +1,6 @@
+import { POST_TAGS } from '../tags';
 import {
+    IsIn,
     IsNotEmpty,
     IsString,
     IsUUID,
@@ -14,9 +16,7 @@ export class CreatePostDto {
     @MaxLength(255)
     title!: string;
 
-    @IsString()
-    @IsNotEmpty()
-    @MaxLength(72)
+    @IsIn(POST_TAGS)
     tag!: string;
 
     @IsString()

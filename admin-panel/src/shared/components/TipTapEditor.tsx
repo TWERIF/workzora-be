@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { uploadPostImage } from "@/features/posts/model/api";
 import Image from "@tiptap/extension-image";
+import { TableKit } from "@tiptap/extension-table";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
@@ -41,6 +42,7 @@ export default function TipTapEditor({
             Image.configure({
                 HTMLAttributes: { loading: "lazy" },
             }),
+            TableKit.configure({ table: { resizable: false } }),
         ],
 
         content: value,
@@ -56,7 +58,9 @@ export default function TipTapEditor({
                     "text-sm",
                     "leading-relaxed",
                     "[&_img]:my-3 [&_img]:max-w-full [&_img]:rounded-lg",
-                    "[&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold"
+                    "[&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold",
+                    "[&_blockquote]:my-3 [&_blockquote]:rounded-lg [&_blockquote]:border [&_blockquote]:border-lime-300 [&_blockquote]:bg-lime-50 [&_blockquote]:p-3",
+                    "[&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:p-2"
                 )
             }
         },
@@ -207,6 +211,29 @@ export default function TipTapEditor({
                         </ToolbarButton>
 
 
+
+                        <ToolbarButton
+                            active={editor.isActive("blockquote")}
+                            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                        >
+                            Виноска
+                        </ToolbarButton>
+
+                        <ToolbarButton
+                            onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 2, withHeaderRow: true }).run()}
+                        >
+                            Таблиця
+                        </ToolbarButton>
+
+                        {editor.isActive("table") && (
+                            <>
+                                <ToolbarButton onClick={() => editor.chain().focus().addRowAfter().run()}>+ Рядок</ToolbarButton>
+                                <ToolbarButton onClick={() => editor.chain().focus().addColumnAfter().run()}>+ Стовпець</ToolbarButton>
+                                <ToolbarButton onClick={() => editor.chain().focus().deleteRow().run()}>− Рядок</ToolbarButton>
+                                <ToolbarButton onClick={() => editor.chain().focus().deleteColumn().run()}>− Стовпець</ToolbarButton>
+                                <ToolbarButton onClick={() => editor.chain().focus().deleteTable().run()}>Видалити таблицю</ToolbarButton>
+                            </>
+                        )}
 
                         <ToolbarButton
                             disabled={isUploading}
