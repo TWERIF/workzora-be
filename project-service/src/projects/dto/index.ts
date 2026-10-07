@@ -165,6 +165,10 @@ export class MyProjectsDto extends PaginationDto {
   @IsOptional()
   @IsEnum(ProjectStatus)
   status?: ProjectStatus;
+
+  @IsOptional()
+  @IsIn(['deals'])
+  group?: 'deals';
 }
 
 export class AwaitingPaymentDto extends IdDto {

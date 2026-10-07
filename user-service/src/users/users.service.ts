@@ -120,7 +120,8 @@ export class UsersService implements OnModuleInit {
         avatarUrl: true,
         position: true,
         ratings: true,
-        rates: true
+        rates: true,
+        lastSeenAt: true,
       }
     });
   }
@@ -134,6 +135,7 @@ export class UsersService implements OnModuleInit {
       id: user.id,
       name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Користувач',
       avatarUrl: user.avatarUrl || null,
+      lastSeenAt: user.lastSeenAt ?? null,
     }));
   }
 
