@@ -47,27 +47,10 @@ import { UsersModule } from './users/users.module';
 export class AppModule { }
 
 
-// docker compose up --build -d bids-service
-
-// docker compose up --build -d search-service
-
-// docker compose up --build -d kyc-service
-
-// docker compose up --build -d posts-service
-
-// docker compose up --build -d api-gateway
-
-// docker compose up --build -d admin-panel
 
 
-/* 
-docker compose up --build -d project-service
-docker compose up --build -d bids-service
-docker compose up --build -d search-service
 
-docker compose up --build -d kyc-service
-docker compose up --build -d posts-service
-docker compose up --build -d api-gateway
 
-docker compose up --build -d admin-panel
-*/
+
+
+

@@ -26,7 +26,6 @@ export class PostsService implements OnModuleInit {
         private readonly searchClient: ClientProxy,
     ) { }
 
-    // Posts created before slugs existed get one on startup.
     async onModuleInit() {
         const posts = await this.postsRepository.find({
             where: { slug: IsNull() },
@@ -35,13 +34,11 @@ export class PostsService implements OnModuleInit {
         for (const post of posts) {
             post.slug = await this.uniqueSlug(post.title, post.id);
             await this.postsRepository.save(post);
-            // these posts were indexed before they had an id, so index them again
             this.searchClient.emit("post.updated", post);
         }
         if (posts.length) this.logger.log(`Generated slugs for ${posts.length} posts`);
     }
 
-    // Appends -2, -3... when another post already uses the same slug.
     private async uniqueSlug(title: string, excludeId?: string): Promise<string> {
         const base = slugify(title);
         const taken = await this.postsRepository.find({
@@ -74,7 +71,6 @@ export class PostsService implements OnModuleInit {
                 minutesToRead: this.calculateMinutes(dto.article),
             });
             const saved = await this.postsRepository.save(post);
-            // emitted after save so the search index receives the generated id
             this.searchClient.emit("post.created", saved);
             return saved;
         } catch (error) {
@@ -112,7 +108,6 @@ export class PostsService implements OnModuleInit {
             where: { id: In(ids) }
         });
     }
-    // returns a value: an RMQ reply without one makes the gateway fail with EmptyError
     async delete(id: string): Promise<{ success: true }> {
         try {
             const result = await this.postsRepository.delete(id);
@@ -162,7 +157,6 @@ export class PostsService implements OnModuleInit {
         }
     }
 
-    // Accepts either the post id (old links) or its slug.
     async getOne(idOrSlug: string): Promise<Post> {
         try {
             const post = await this.postsRepository.findOne({

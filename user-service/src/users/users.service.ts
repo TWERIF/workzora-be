@@ -16,7 +16,6 @@ import { PortfolioService } from '../portfolio/portfolio.service';
 import { ReviewsService } from '../reviews/reviews.service';
 import { UserRole } from '../types';
 
-// Fields safe to expose on public listings (no password hash / emails).
 const PUBLIC_USER_FIELDS: (keyof User)[] = [
   'id', 'firstName', 'lastName', 'username', 'role', 'skills', 'ratings', 'rates', 'rate',
   'position', 'avatarUrl', 'bio', 'city', 'country', 'availability', 'createdAt',
@@ -26,7 +25,6 @@ export interface TopClientsQuery {
   page?: number;
   limit?: number;
   search?: string;
-  // rounded star ratings (1-5) to include
   ratings?: number[];
 }
 
@@ -133,8 +131,6 @@ export class UsersService implements OnModuleInit {
     }));
   }
 
-  // Accounts that existed before the roleSelected column have already chosen their role.
-  // Fresh sign-ups (last 24h) keep the chance to pick it on the account-type page.
   async onModuleInit() {
     await this.userRepository.query(
       `UPDATE users.users SET "roleSelected" = true
@@ -184,16 +180,11 @@ export class UsersService implements OnModuleInit {
       throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'User not found' });
     }
 
-    // Registration date is set once on insert and must not be editable by the user.
     delete data.createdAt;
-    // Rating and review count are derived from reviews (see ReviewsService).
     delete data.ratings;
     delete data.rates;
-    // Password changes need their own flow (old password / email code), and activation is server-side only.
     delete data.password;
     delete data.isActive;
-    // The role is picked once on the account-type page after sign-up; later changes go through
-    // switchRole (once a week, no running deals). Admin can never be self-assigned.
     if (data.role !== undefined) {
       if (user.roleSelected || ![UserRole.CLIENT, UserRole.FREELANCER].includes(data.role as UserRole)) {
         delete data.role;
@@ -218,7 +209,6 @@ export class UsersService implements OnModuleInit {
     return this.userRepository.findOne({ where: { email: data.email } });
   }
 
-  // Returns the user without the password hash when the credentials match, otherwise null.
   async validateCredentials(data: { email?: string; password?: string }): Promise<Omit<User, 'password' | 'setCreatedAt'> | null> {
     if (!data?.email || !data?.password) return null;
     const user = await this.userRepository.findOne({ where: { email: data.email } });
@@ -242,7 +232,6 @@ export class UsersService implements OnModuleInit {
     });
   }
 
-  // Paginated "Top clients" listing with search, a star-rating filter and the latest review of each client.
   async findTopClientsPaged({ page = 1, limit = 10, search, ratings }: TopClientsQuery) {
     page = Number(page) || 1;
     limit = Number(limit) || 10;
@@ -271,7 +260,6 @@ export class UsersService implements OnModuleInit {
       .take(limit)
       .getManyAndCount();
 
-    // counts per star bucket for the filter sidebar (independent of the rating filter itself)
     const buckets = await this.userRepository
       .createQueryBuilder('client')
       .select('ROUND(client.ratings)', 'stars')

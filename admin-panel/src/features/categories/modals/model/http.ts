@@ -9,12 +9,10 @@ export const update = async (body: Partial<CreateCategoriesDto>, id: string) => 
     return (await api.patch(`/categories/${id}`, body)).data;
 }
 
-export const findAll = async ({ page = 1, limit = 20 }: { page: number, limit: number }) => {
-    return (await api.get("/categories", {
-        params: {
-            page,
-            limit
-        }
+export const findAll = async ({ page = 1, limit = 20, search = "" }: { page: number, limit: number, search?: string }) => {
+    const term = search.trim();
+    return (await api.get(term ? "/categories/search" : "/categories", {
+        params: term ? { page, limit, search: term } : { page, limit }
     })).data;
 }
 

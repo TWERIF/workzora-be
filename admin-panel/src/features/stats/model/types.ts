@@ -4,7 +4,6 @@ export interface StatsDay {
     views: number;
     newUsers: number;
     newProjects: number;
-    // kopecks
     commission: number;
     volume: number;
 }

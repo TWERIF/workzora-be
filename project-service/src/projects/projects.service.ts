@@ -182,12 +182,9 @@ export class ProjectsService {
       throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'Only a project in progress can be completed' });
     }
 
-    // Release the escrow first: if moving money to the freelancer's balance fails,
-    // the project must stay in progress so the client can retry.
     await firstValueFrom(
       this.escrowClient.send('invoices.release', { projectId: project.id, clientId: data.clientId }),
     ).catch((error) => {
-      // forward the escrow's { statusCode, message } instead of a generic internal error
       throw new RpcException(error);
     });
 
@@ -301,7 +298,6 @@ export class ProjectsService {
     return { ...project, proposalsCount };
   }
 
-  // Latest project of each client, used by the "Top clients" page as "last activity".
   async findLastByClients(ids: string[]) {
     if (!ids?.length) return {};
 
@@ -355,7 +351,6 @@ export class ProjectsService {
 
   }
 
-  // Admin dashboard: projects created per day in the range plus the current status breakdown.
   async stats({ from, to }: { from: string; to: string }) {
     const byDay: { day: string; count: string }[] = await this.projectRepository.query(
       `SELECT to_char(("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Kyiv')::date, 'YYYY-MM-DD') AS day, count(*) AS count
@@ -375,8 +370,6 @@ export class ProjectsService {
     };
   }
 
-  // A user can't change account type while a deal is running: as a client they would lose the
-  // right to pay for / complete it, as a freelancer the work in progress would be orphaned.
   async countActiveDeals({ userId }: { userId: string }) {
     const asClient = await this.projectRepository.count({
       where: [

@@ -1,5 +1,3 @@
-// Ukrainian official transliteration (CMU resolution No. 55, 2010) plus the extra Russian letters.
-// Letters that are spelled differently at the start of a word are listed in WORD_START.
 const MAP: Record<string, string> = {
     а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: 'ie', ж: 'zh', з: 'z',
     и: 'y', і: 'i', ї: 'i', й: 'i', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p',
@@ -23,7 +21,6 @@ export function transliterate(text: string): string {
         const prev = source[i - 1];
         const isWordStart = !prev || !/[\p{L}\p{N}]/u.test(prev);
 
-        // "зг" is written as "zgh" to tell it apart from "ж" (zh)
         if (char === 'г' && prev === 'з') {
             result += 'gh';
             continue;
@@ -50,7 +47,6 @@ export function slugify(title: string): string {
 
     if (slug.length <= MAX_LENGTH) return slug || 'post';
 
-    // cut on a word boundary so the slug does not end with half a word
     const cut = slug.slice(0, MAX_LENGTH);
     const lastDash = cut.lastIndexOf('-');
     return (lastDash > 20 ? cut.slice(0, lastDash) : cut).replace(/-+$/, '');

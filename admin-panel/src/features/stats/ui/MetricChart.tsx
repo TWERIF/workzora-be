@@ -2,7 +2,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { StatsDay } from "../model/types";
 
-// One series per chart, so no legend is needed; the title names the metric.
 const BAR_COLOR = "#2563eb";
 
 interface MetricChartProps {

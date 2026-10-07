@@ -8,7 +8,6 @@ export interface WithdrawalUser {
     avatarUrl?: string | null;
 }
 
-// Amounts are in USD (the backend converts from cents).
 export interface Withdrawal {
     id: string;
     userId: string;
@@ -23,7 +22,6 @@ export interface Withdrawal {
 }
 
 export interface WithdrawalDetails extends Withdrawal {
-    // full card number for the manual transfer, null if the user removed the card
     cardNumber: string | null;
 }
 

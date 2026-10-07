@@ -19,19 +19,10 @@ export const useAuth = () => {
     data: user,
     isLoading: isUserLoading,
     isFetching,
-    isError,
     refetch,
   } = useQuery({
     queryKey: authKeys.me,
-    queryFn: async () => {
-      try {
-        const response = await verify();
-        return response;
-      } catch (error) {
-        console.log(isError)
-        return null;
-      }
-    },
+    queryFn: () => verify().catch(() => null),
     retry: false,
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: true,
