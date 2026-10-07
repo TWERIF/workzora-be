@@ -5,8 +5,8 @@ import { User } from '../users/entities/user.entity';
 import { DailyVisit } from './entities/daily-visit.entity';
 
 export interface StatsRange {
-  from: string; // ISO date, inclusive
-  to: string; // ISO date, inclusive
+  from: string;
+  to: string;
 }
 
 const TZ = 'Europe/Kyiv';

@@ -88,16 +88,12 @@ export class User {
   @Column({ type: 'text', default: '' })
   bio!: string;
 
-  // Nullable on purpose: users created before this column existed have no known
-  // registration date, and a DEFAULT now() would backfill them with the deploy date.
   @Column({ type: 'timestamptz', nullable: true })
   createdAt!: Date | null;
 
-  // set once the user picked client/freelancer on the account-type page after sign-up
   @Column({ default: false })
   roleSelected!: boolean;
 
-  // last client <-> freelancer switch; switching is allowed once per ROLE_SWITCH_DAYS
   @Column({ type: 'timestamptz', nullable: true })
   roleSwitchedAt!: Date | null;
 

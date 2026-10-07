@@ -1,6 +1,5 @@
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
 
-// One row per user. Amounts are integer minor units (USD cents), same as Invoice.amount.
 @Entity({ schema: "wallet", name: "wallets" })
 export class Wallet {
     @PrimaryColumn("uuid")

@@ -25,7 +25,6 @@ export class PostsSearchService {
         await this.searchRepository.save(searchRecord);
     }
 
-    // save() upserts by id, so posts missing from the index get added on update
     async updateIndexedProject(projectData: IndexPostDto) {
         await this.searchRepository.save({
             id: projectData.id,

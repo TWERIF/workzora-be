@@ -1,6 +1,5 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-// One row per visitor per day; `views` counts the pages they opened that day.
 @Entity({ name: 'daily_visits', schema: 'analytics' })
 @Index(['day', 'visitorId'], { unique: true })
 export class DailyVisit {

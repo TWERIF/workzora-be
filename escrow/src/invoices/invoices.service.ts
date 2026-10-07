@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from "@nestjs/common";
+import { HttpStatus, Inject, Injectable, Logger } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -15,6 +15,8 @@ type PollStatus = "processing" | "success" | "failure";
 
 @Injectable()
 export class InvoicesService {
+    private readonly logger = new Logger(InvoicesService.name);
+
     constructor(
         @InjectRepository(Invoice) private readonly repo: Repository<Invoice>,
         private readonly dataSource: DataSource,
@@ -41,14 +43,13 @@ export class InvoicesService {
                 const monoStatus = await this.mono.checkStatus(invoice.monobankInvoiceId);
                 await this.handleStatusUpdate(invoice.monobankInvoiceId, monoStatus.status);
             } catch (error) {
-                console.error(`Reconcile failed for invoice ${invoice.monobankInvoiceId}`, error);
+                this.logger.error(`Reconcile failed for invoice ${invoice.monobankInvoiceId}`, error);
             }
         }
     }
 
     async createEscrow(dto: CreateEscrowDto) {
         const existing = await this.repo.findOne({ where: { projectId: dto.projectId } });
-        // An unpaid (or expired) invoice can be re-issued; anything past that means the money already moved.
         if (existing && ![EscrowStatus.CREATED, EscrowStatus.EXPIRED].includes(existing.status)) {
             throw rpcError(HttpStatus.CONFLICT, "Escrow for this project is already paid");
         }
@@ -143,7 +144,7 @@ export class InvoicesService {
         try {
             this.rabbitClient.emit("projects.toInProgress", { id: projectId });
         } catch (error) {
-            console.error(`Failed to notify projects.toInProgress for ${projectId}`, error);
+            this.logger.error(`Failed to notify projects.toInProgress for ${projectId}`, error);
         }
     }
     async getStatus(monobankInvoiceId: string): Promise<{ status: PollStatus; escrow?: Invoice }> {
@@ -164,12 +165,9 @@ export class InvoicesService {
     private toPollStatus(status: EscrowStatus): PollStatus {
         if (status === EscrowStatus.EXPIRED) return "failure";
         if (status === EscrowStatus.CREATED) return "processing";
-        // HELD, CAPTURED, DISPUTED, REFUNDED, PAID_OUT all mean the payment
-        // itself succeeded — the frontend only cares that funds moved.
         return "success";
     }
 
-    // Called when the client completes the project: releases the held funds to the freelancer's wallet.
     async releaseByProject(projectId: string, clientId: string): Promise<Invoice> {
         const invoice = await this.getByProjectId(projectId);
         return this.confirmByClient(invoice.id, clientId);
@@ -180,7 +178,6 @@ export class InvoicesService {
         if (invoice.clientId !== clientId) {
             throw rpcError(HttpStatus.FORBIDDEN, "Only the client of this escrow can confirm it");
         }
-        // CAPTURED means a previous payout attempt failed midway — retry it instead of erroring
         if (invoice.status !== EscrowStatus.HELD && invoice.status !== EscrowStatus.CAPTURED) {
             throw rpcError(HttpStatus.BAD_REQUEST, `Cannot confirm invoice in status ${EscrowStatus[invoice.status]}`);
         }
@@ -232,8 +229,6 @@ export class InvoicesService {
         return this.getById(invoice.id);
     }
 
-    // Moves CAPTURED funds (minus commission) to the freelancer's wallet balance in the same
-    // DB transaction as the status change, so a payout can never be applied twice.
     private async payout(invoiceId: string): Promise<void> {
         await this.dataSource.transaction(async (manager) => {
             const invoice = await manager.getRepository(Invoice).findOne({
@@ -257,8 +252,6 @@ export class InvoicesService {
         });
     }
 
-    // Admin dashboard. Amounts are in kopecks. Commission counts as earned once the escrow
-    // was captured for the freelancer (CAPTURED / PAID_OUT); its day is the capture day (updatedAt).
     async stats({ from, to }: { from: string; to: string }) {
         const earned = [EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT].map(String);
         const paid = [EscrowStatus.HELD, EscrowStatus.DISPUTED, EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT].map(String);

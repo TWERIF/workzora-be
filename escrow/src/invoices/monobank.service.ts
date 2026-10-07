@@ -5,8 +5,6 @@ interface CreateInvoiceResponse {
     pageUrl: string;
 }
 
-// Subset of Monobank's GET /api/merchant/invoice/status response.
-// status is one of: created | processing | hold | success | failure | reversed | expired
 interface InvoiceStatusResponse {
     invoiceId: string;
     status: string;
@@ -53,10 +51,6 @@ export class MonobankService {
         return res.json();
     }
 
-    // Used for the frontend's status-polling flow: webhooks can be delayed or
-    // simply never arrive (e.g. no public MONO_WEBHOOK_URL in dev), so the
-    // gateway needs a way to ask Monobank directly "what's the current status
-    // of this invoice?" instead of relying solely on the webhook having fired.
     async checkStatus(invoiceId: string): Promise<InvoiceStatusResponse> {
         const res = await fetch(
             `${this.baseUrl}/api/merchant/invoice/status?invoiceId=${encodeURIComponent(invoiceId)}`,

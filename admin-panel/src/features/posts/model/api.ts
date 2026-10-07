@@ -1,11 +1,11 @@
 import { api } from "@/shared/http";
+import type { Post } from "./types";
 
 export const createPost = async (formData: FormData) => {
     const res = await api.post("/posts", formData);
     return res.data;
 };
 
-// Uploads an image for the article body and returns its public URL
 export const uploadPostImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("image", file);
@@ -63,12 +63,12 @@ export const getLatestPosts = async () => {
 };
 
 
-export const searchPosts = async (searchTerm: string) => {
+export const searchPosts = async (searchTerm: string): Promise<Post[]> => {
     if (!searchTerm || searchTerm.trim() === "") {
         return [];
     }
 
-    const res = await api.get("/posts/search", {
+    const res = await api.get<Post[]>("/posts/search", {
         params: {
             searchTerm,
         },

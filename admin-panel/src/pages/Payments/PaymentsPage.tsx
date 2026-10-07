@@ -11,8 +11,6 @@ import { useState } from "react";
 const LIMIT = 12;
 const STATUSES: WithdrawalStatus[] = ["processing", "completed", "rejected"];
 
-// Project payments now land on the freelancer's wallet balance automatically when the
-// client completes the project; the admin only pays out withdrawal requests from that balance.
 export default function PaymentsPage() {
     const [page, setPage] = useState(1);
     const [status, setStatus] = useState<WithdrawalStatus>("processing");

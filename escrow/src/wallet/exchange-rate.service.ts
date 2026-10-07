@@ -12,10 +12,7 @@ interface MonoCurrencyRate {
 
 const USD = 840;
 const UAH = 980;
-// Monobank's public /bank/currency endpoint allows roughly one request per 5 minutes
-// and answers 429 otherwise, so the rate is cached and the last good value is reused on errors.
 const CACHE_TTL_MS = 5 * 60 * 1000;
-// after a failed request, don't hit Monobank again sooner than this
 const RETRY_AFTER_MS = 60 * 1000;
 
 @Injectable()
@@ -50,7 +47,6 @@ export class ExchangeRateService {
 
             const rates: MonoCurrencyRate[] = await res.json();
             const usd = rates.find((r) => r.currencyCodeA === USD && r.currencyCodeB === UAH);
-            // rateSell is what the bank sells USD for; fall back to the cross rate if absent
             const rate = usd?.rateSell ?? usd?.rateCross;
             if (!usd || !rate) {
                 this.logger.warn("USD/UAH rate not found in Monobank response");

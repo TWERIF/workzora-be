@@ -6,8 +6,6 @@ export enum WithdrawalStatus {
     REJECTED = "rejected",
 }
 
-// A freelancer's request to move money from the wallet to their card.
-// Payouts are done manually by an admin, who then marks the request completed.
 @Entity({ schema: "wallet", name: "withdrawals" })
 export class Withdrawal {
     @PrimaryGeneratedColumn("uuid")
@@ -17,7 +15,6 @@ export class Withdrawal {
     @Column("uuid")
     userId!: string;
 
-    // USD cents
     @Column({ type: "int" })
     amount!: number;
 

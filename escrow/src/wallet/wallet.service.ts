@@ -6,13 +6,11 @@ import { TransactionKind, TransactionType, WalletTransaction } from "./entities/
 import { Wallet } from "./entities/wallet.entity";
 import { Withdrawal, WithdrawalStatus } from "./entities/withdrawal.entity";
 
-// Everything stored in cents; the RPC boundary talks in dollars (what the UI shows).
 const toUsd = (cents: number) => cents / 100;
 const toCents = (usd: number) => Math.round(usd * 100);
 
 export const MIN_WITHDRAWAL_USD = 10;
 
-// Plain HttpExceptions reach the gateway as "Internal server error"; this keeps status + message.
 export const rpcError = (statusCode: HttpStatus, message: string) => new RpcException({ statusCode, message });
 
 @Injectable()
@@ -24,7 +22,6 @@ export class WalletService {
         @InjectRepository(Withdrawal) private readonly withdrawalRepo: Repository<Withdrawal>,
     ) { }
 
-    // Locks (and lazily creates) the wallet row so concurrent balance changes serialize.
     private async lockWallet(manager: EntityManager, userId: string): Promise<Wallet> {
         await manager
             .createQueryBuilder()
@@ -40,8 +37,6 @@ export class WalletService {
         });
     }
 
-    // Must be called inside a transaction; used by escrow payouts so the invoice status
-    // change and the balance credit commit together.
     async credit(
         manager: EntityManager,
         params: { userId: string; amountCents: number; type: TransactionType; projectId?: string; description?: string },
@@ -83,7 +78,6 @@ export class WalletService {
         if (from) where.createdAt = MoreThanOrEqual(new Date(from));
 
         const rows = await this.txRepo.find({ where, order: { createdAt: "DESC" }, take: 200 });
-        // bonuses are whole points, balance entries are cents
         return rows.map((row) => ({ ...row, amount: kind === TransactionKind.BONUS ? row.amount : toUsd(row.amount) }));
     }
 
@@ -180,7 +174,6 @@ export class WalletService {
             row.note = note ?? null;
             await manager.getRepository(Withdrawal).save(row);
 
-            // return the reserved funds
             const wallet = await this.lockWallet(manager, row.userId);
             wallet.balance += row.amount;
             await manager.getRepository(Wallet).save(wallet);

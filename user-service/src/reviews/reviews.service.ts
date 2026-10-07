@@ -32,8 +32,6 @@ export class ReviewsService {
     @InjectRepository(User) private readonly userRepository: Repository<User>,
   ) { }
 
-  // Project ownership/status checks happen in the gateway, which knows the project;
-  // this only validates the review itself.
   async create(data: CreateReviewPayload) {
     for (const key of REVIEW_CRITERIA) {
       const value = Number(data[key]);
@@ -75,7 +73,6 @@ export class ReviewsService {
         }),
       );
 
-      // users.ratings is the average review rating, users.rates the number of reviews
       const stats = await manager
         .getRepository(Review)
         .createQueryBuilder('r')
@@ -120,7 +117,6 @@ export class ReviewsService {
     return this.reviewRepository.findOne({ where: { projectId, authorId } });
   }
 
-  // Latest review about each of the given users.
   async findLastByTargets(ids: string[]): Promise<Record<string, Review>> {
     if (!ids.length) return {};
 
