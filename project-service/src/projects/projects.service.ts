@@ -165,6 +165,7 @@ export class ProjectsService {
       }
 
       project.status = ProjectStatus.IN_PROGRESS;
+      project.startedAt = new Date();
 
       await this.projectRepository.save(project);
 
@@ -210,6 +211,7 @@ export class ProjectsService {
     });
 
     project.status = ProjectStatus.COMPLETED;
+    project.completedAt = new Date();
     const saved = await this.projectRepository.save(project);
 
     const chat = await this.chatService.findOrCreateChat(data.id);
@@ -356,20 +358,26 @@ export class ProjectsService {
   }
 
   async findMyProjects(data: MyProjectsDto) {
-    const { status, userId, page = 1, limit = 10 } = data;
+    const { status, group, userId, page = 1, limit = 10 } = data;
     const skip = (page - 1) * limit;
 
-    const [items, total] = await this.projectRepository
+    const query = this.projectRepository
       .createQueryBuilder("project")
       .leftJoinAndSelect('project.categories', 'category')
-      .where(
-        "(project.clientId = :userId OR project.freelancerId = :userId)",
-        { userId }
-      )
-      .andWhere("project.status = :status", { status: status as ProjectStatus })
+      .where("(project.clientId = :userId OR project.freelancerId = :userId)", { userId })
+      .orderBy("project.updatedAt", "DESC")
       .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+      .take(limit);
+
+    if (group === 'deals') {
+      query.andWhere("project.status IN (:...statuses)", {
+        statuses: [ProjectStatus.AWAITING_PAYMENT, ProjectStatus.IN_PROGRESS, ProjectStatus.COMPLETED],
+      });
+    } else if (status) {
+      query.andWhere("project.status = :status", { status });
+    }
+
+    const [items, total] = await query.getManyAndCount();
 
     return {
       items,
@@ -380,7 +388,6 @@ export class ProjectsService {
         totalPages: Math.ceil(total / limit),
       },
     };
-
   }
 
   async stats({ from, to }: { from: string; to: string }) {

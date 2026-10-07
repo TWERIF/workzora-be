@@ -13,6 +13,7 @@ interface ChatUser {
   id: string;
   name: string;
   avatarUrl: string | null;
+  lastSeenAt?: string | null;
 }
 
 export interface ChatAccess {
@@ -101,6 +102,10 @@ export class ChatService {
         projectId: chat.project.id,
         avatarUrl: counterpart?.avatarUrl ?? null,
         userName: counterpart?.name ?? null,
+        counterpartId: counterpart?.id ?? null,
+        counterpartLastSeenAt: counterpart?.lastSeenAt ?? null,
+        lastMessageFromMe: Boolean(userId && messages[0]?.senderId === userId),
+        lastMessageRead: messages[0]?.isRead ?? false,
         client: { id: chat.project.clientId, name: client?.name ?? null, avatarUrl: client?.avatarUrl ?? null },
         freelancer: {
           id: chat.project.freelancerId ?? null,

@@ -71,6 +71,12 @@ export class Project {
   @Column({ type: 'int', default: 0 })
   views!: number;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  startedAt!: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  completedAt!: Date | null;
+
   @Column({
     type: 'enum',
     enum: ProjectStatus,

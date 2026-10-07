@@ -70,6 +70,11 @@ export class MyProjectsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsIn(PROJECT_STATUSES)
   status?: string;
+
+  @ApiPropertyOptional({ enum: ['deals'], description: 'Projects with a chosen freelancer: awaiting payment, in progress, completed' })
+  @IsOptional()
+  @IsIn(['deals'])
+  group?: 'deals';
 }
 
 export class SearchQueryDto {
