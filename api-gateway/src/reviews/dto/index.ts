@@ -38,12 +38,13 @@ export class CreateReviewDto {
   @Max(SCORE_MAX)
   price!: number;
 
-  @ApiProperty({ minimum: 1, maximum: 5 })
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
   @Type(() => Number)
   @IsInt()
   @Min(SCORE_MIN)
   @Max(SCORE_MAX)
-  deadlines!: number;
+  @IsOptional()
+  deadlines?: number;
 
   @ApiProperty()
   @IsString()
@@ -73,4 +74,12 @@ export class ReviewsQueryDto {
   @Min(1)
   @Max(50)
   limit: number = 5;
+}
+
+export class ReviewResponseDto {
+  @ApiProperty({ maxLength: 2000 })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  text!: string;
 }

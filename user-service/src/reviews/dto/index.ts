@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateReviewDto {
   @IsUUID()
@@ -46,7 +46,8 @@ export class CreateReviewDto {
   @IsInt()
   @Min(1)
   @Max(5)
-  deadlines!: number;
+  @IsOptional()
+  deadlines?: number;
 
   @IsString()
   @MaxLength(1000)
@@ -82,4 +83,17 @@ export class FindMineDto {
 
   @IsUUID()
   authorId!: string;
+}
+
+export class RespondReviewDto {
+  @IsUUID()
+  id!: string;
+
+  @IsUUID()
+  userId!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  text!: string;
 }

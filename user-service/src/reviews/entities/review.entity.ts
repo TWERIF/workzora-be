@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
 export const REVIEW_CRITERIA = ['quality', 'professionalism', 'communication', 'price', 'deadlines'] as const;
+export const CLIENT_REVIEW_CRITERIA = ['quality', 'professionalism', 'communication', 'price'] as const;
 export type ReviewCriterion = (typeof REVIEW_CRITERIA)[number];
 
 @Entity({ name: 'reviews', schema: 'reviews' })
@@ -37,7 +38,7 @@ export class Review {
   @Column({ type: 'smallint' })
   price!: number;
 
-  @Column({ type: 'smallint' })
+  @Column({ type: 'smallint', default: 0 })
   deadlines!: number;
 
   @Column({ type: 'float' })
@@ -48,6 +49,12 @@ export class Review {
 
   @Column({ type: 'text', nullable: true, select: false })
   privateFeedback!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  response!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  respondedAt!: Date | null;
 
   @CreateDateColumn()
   createdAt!: Date;
