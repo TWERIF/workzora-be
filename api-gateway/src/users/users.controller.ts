@@ -8,11 +8,22 @@ import { CurrentUser } from '../common/auth-user';
 import type { AccountVerification, AuthUser } from '../common/auth-user';
 import { assertImage, IMAGE_UPLOAD_LIMIT } from '../common/files';
 import { sendRpc } from '../common/rpc';
-import { ClientProjectsQueryDto, ProfilesPreviewQueryDto, TopClientsQueryDto, UpdateUserDto } from './dto';
+import { ClientProjectsQueryDto, FreelancersQueryDto, ProfilesPreviewQueryDto, TopClientsQueryDto, UpdateUserDto } from './dto';
 
 interface TopClient {
   id: string;
   lastReview: unknown;
+}
+
+interface CategoryTreeNode {
+  id: string;
+  title: string;
+  count: number;
+  specializations: { id: string; title: string; count: number }[];
+}
+
+interface FreelancerRecord {
+  id: string;
 }
 
 interface Paginated<T> {
@@ -100,6 +111,44 @@ export class UsersController {
         isVerified: verifications[index]?.status === 'verified',
       })),
     };
+  }
+
+  @Public()
+  @Get('freelancers')
+  @ApiOperation({ summary: 'Freelancers by rating with search and specialization filter' })
+  async findFreelancers(@Query() { category, specializations, ...query }: FreelancersQueryDto) {
+    let categoryIds: string[] | undefined = specializations?.length ? specializations : undefined;
+    if (!categoryIds && category) {
+      const tree = await sendRpc<CategoryTreeNode[]>(this.projectClient, 'categories.tree', {});
+      const node = tree.find((item) => item.id === category);
+      categoryIds = [category, ...(node?.specializations.map((item) => item.id) ?? [])];
+    }
+
+    const result = await sendRpc<Paginated<FreelancerRecord>>(this.userClient, 'users.findFreelancers', { ...query, categoryIds });
+    const verifications = await Promise.all(
+      result.data.map((user) =>
+        sendRpc<AccountVerification | null>(this.kycClient, 'accout-verification.findOneByUserId', { userId: user.id }).catch(() => null),
+      ),
+    );
+    return { ...result, data: result.data.map((user, index) => ({ ...user, isVerified: verifications[index]?.status === 'verified' })) };
+  }
+
+  @Public()
+  @Get('freelancers/categories')
+  @ApiOperation({ summary: 'Categories with freelancer counts' })
+  async freelancerCategories() {
+    const tree = await sendRpc<CategoryTreeNode[]>(this.projectClient, 'categories.tree', {});
+    const groups: Record<string, string[]> = {};
+    for (const node of tree) {
+      groups[node.id] = [node.id, ...node.specializations.map((item) => item.id)];
+      for (const item of node.specializations) groups[item.id] = [item.id];
+    }
+    const counts = await sendRpc<Record<string, number>>(this.userClient, 'users.specializationCounts', { groups });
+    return tree.map((node) => ({
+      ...node,
+      count: counts[node.id] ?? 0,
+      specializations: node.specializations.map((item) => ({ ...item, count: counts[item.id] ?? 0 })),
+    }));
   }
 
   @Public()

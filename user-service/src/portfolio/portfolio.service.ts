@@ -56,6 +56,14 @@ export class PortfolioService {
     return this.portfolioRepository.find({ where: { userId: In(userIds) } });
   }
 
+  async findLatestByUserIds(userIds: string[]): Promise<Record<string, Portfolio>> {
+    if (!userIds.length) return {};
+    const items = await this.portfolioRepository.find({ where: { userId: In(userIds) }, order: { createdAt: 'DESC' } });
+    const latest: Record<string, Portfolio> = {};
+    for (const item of items) latest[item.userId] ??= item;
+    return latest;
+  }
+
   async findAll({ page, limit }: PaginationDto) {
     const [items, total] = await this.portfolioRepository.findAndCount({
       order: { createdAt: 'DESC' },

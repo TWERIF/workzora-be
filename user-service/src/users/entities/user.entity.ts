@@ -33,6 +33,9 @@ export class User {
   @Column('simple-array', { default: '' })
   skills!: string[];
 
+  @Column('uuid', { array: true, default: () => "'{}'" })
+  specializations!: string[];
+
   @Column({ type: 'float', default: 0 })
   ratings!: number;
 
