@@ -8,6 +8,17 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 @Module({
   imports: [TypeOrmModule.forFeature([Post]), ClientsModule.register([
     {
+      name: 'EMAIL_CLIENT',
+      transport: Transport.RMQ,
+      options: {
+        urls: ['amqp://rabbitmq:5672'],
+        queue: 'email_queue',
+        queueOptions: {
+          durable: true,
+        },
+      },
+    },
+    {
       name: 'SEARCH_CLIENT',
       transport: Transport.RMQ,
       options: {

@@ -22,9 +22,8 @@ import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
 import { CurrentUser } from '../common/auth-user';
 import type { AuthUser } from '../common/auth-user';
 import { assertImage, IMAGE_UPLOAD_LIMIT } from '../common/files';
-import { PaginationQueryDto } from '../common/pagination.dto';
 import { sendRpc } from '../common/rpc';
-import { CreatePostDto, SearchPostsQueryDto, UpdatePostDto } from './dto';
+import { CreatePostDto, PostsQueryDto, SearchPostsQueryDto, UpdatePostDto } from './dto';
 
 const POSTS_FOLDER = 'workzora_posts';
 
@@ -100,9 +99,23 @@ export class PostsController {
 
   @Get()
   @Public()
-  @ApiOperation({ summary: 'Articles, newest first' })
-  getAll(@Query() query: PaginationQueryDto) {
+  @ApiOperation({ summary: 'Articles, newest first, with a topic filter' })
+  getAll(@Query() query: PostsQueryDto) {
     return sendRpc(this.postsClient, 'posts.getAll', query);
+  }
+
+  @Get('popular')
+  @Public()
+  @ApiOperation({ summary: 'Five most read articles' })
+  getPopular() {
+    return sendRpc(this.postsClient, 'posts.popular', {});
+  }
+
+  @Post(':id/view')
+  @Public()
+  @ApiOperation({ summary: 'Count an article view' })
+  addView(@Param('id', ParseUUIDPipe) id: string) {
+    return sendRpc(this.postsClient, 'posts.view', { id });
   }
 
   @Get('latest')

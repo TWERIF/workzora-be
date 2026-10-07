@@ -17,6 +17,7 @@ import { PaymentDataModule } from './payment-data/payment-data.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { StatsModule } from './stats/stats.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { NewsletterModule } from './newsletter/newsletter.module';
 import { SupportModule } from './support/support.module';
 
 @Module({
@@ -68,6 +69,7 @@ import { SupportModule } from './support/support.module';
     StatsModule,
     SupportModule,
     NotificationsModule,
+    NewsletterModule,
   ],
   providers: [
     {

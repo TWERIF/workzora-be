@@ -38,6 +38,9 @@ export class Post {
     @Column()
     tag!: string;
 
+    @Column({ type: 'int', default: 0 })
+    views!: number;
+
     @CreateDateColumn()
     createdAt!: Date;
 
