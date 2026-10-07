@@ -8,6 +8,8 @@ import {
 } from './dto';
 import { Category } from './entities/category.entity';
 
+type CategoryWithCount = Category & { count?: number };
+
 @Injectable()
 export class CategoriesService {
     constructor(
@@ -58,7 +60,7 @@ export class CategoriesService {
         const [items, total] = await query.getManyAndCount();
 
         return {
-            items: items.map((item: any) => ({
+            items: items.map((item: CategoryWithCount) => ({
                 ...item,
                 subcategories: [],
                 count: item.count ?? 0,
@@ -104,7 +106,7 @@ export class CategoriesService {
         const [items, total] = await query.getManyAndCount();
 
         return {
-            items: items.map((item: any) => ({
+            items: items.map((item: CategoryWithCount) => ({
                 ...item,
                 subcategories: [],
                 count: item.count ?? 0,
