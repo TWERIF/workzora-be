@@ -73,6 +73,21 @@ export class User {
   })
   availability!: Availability;
 
+  @Column({ type: 'varchar', length: 20, default: 'STANDARD' })
+  rateType!: string;
+
+  @Column({ type: 'varchar', length: 200, default: '' })
+  rateNote!: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  projectType!: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  budgetRange!: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  workFormat!: string | null;
+
   @Column({nullable: true})
   phone!: string;
 
@@ -82,8 +97,8 @@ export class User {
   @Column({nullable: true})
   country!: string;
 
-  @Column({ nullable: true })
-  avatarUrl!: string;
+  @Column({ type: 'varchar', nullable: true })
+  avatarUrl!: string | null;
 
   @Column({ type: 'text', default: '' })
   bio!: string;

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Inject,
   Param,
   ParseUUIDPipe,
@@ -10,10 +11,12 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiConsumes, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/public.decorator';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
@@ -22,7 +25,7 @@ import type { AuthUser } from '../common/auth-user';
 import { assertImage, IMAGE_UPLOAD_LIMIT } from '../common/files';
 import { PaginationQueryDto } from '../common/pagination.dto';
 import { sendRpc } from '../common/rpc';
-import { CreatePortfolioDto, UpdatePortfolioDto } from './dto';
+import { CreatePortfolioDto, parseTags, UpdatePortfolioDto } from './dto';
 
 @ApiTags('portfolio')
 @Controller('portfolio')
@@ -43,7 +46,7 @@ export class PortfolioController {
     @UploadedFile() file: Express.Multer.File | undefined,
   ) {
     const imageUrl = await this.cloudinaryService.uploadAnyDocument(assertImage(file, 'image'), 'portfolio');
-    return sendRpc(this.portfolioClient, 'portfolio.create', { ...dto, userId: user.id, imageUrl });
+    return sendRpc(this.portfolioClient, 'portfolio.create', { ...dto, tags: parseTags(dto.tags), userId: user.id, imageUrl });
   }
 
   @Patch(':id')
@@ -58,7 +61,7 @@ export class PortfolioController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     const imageUrl = file ? await this.cloudinaryService.uploadAnyDocument(assertImage(file, 'image'), 'portfolio') : undefined;
-    return sendRpc(this.portfolioClient, 'portfolio.update', { ...dto, id, userId: user.id, imageUrl });
+    return sendRpc(this.portfolioClient, 'portfolio.update', { ...dto, tags: parseTags(dto.tags), id, userId: user.id, imageUrl });
   }
 
   @Delete(':id')
@@ -66,6 +69,16 @@ export class PortfolioController {
   @ApiOperation({ summary: 'Delete own portfolio item' })
   delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return sendRpc(this.portfolioClient, 'portfolio.delete', { id, userId: user.id });
+  }
+
+  @Post(':id/view')
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Count a view of a portfolio item' })
+  addView(@Param('id', ParseUUIDPipe) id: string) {
+    return sendRpc(this.portfolioClient, 'portfolio.addView', { id });
   }
 
   @Get('me')

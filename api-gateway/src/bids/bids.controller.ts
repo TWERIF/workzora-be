@@ -51,6 +51,8 @@ export class BidsController {
     if (!project) throw new BadRequestException('Project not found');
     if (project.status !== 'open') throw new BadRequestException('The project is not accepting proposals');
     if (project.clientId === user.id) throw new ForbiddenException('You cannot bid on your own project');
+    const block = await sendRpc<{ blockedMe: boolean }>(this.userClient, 'users.blockStatus', { userId: user.id, otherId: project.clientId });
+    if (block.blockedMe) throw new ForbiddenException('The client has blocked you');
 
     const bid = await sendRpc(this.bidsClient, 'bids.create', { ...data, userId: user.id });
     this.notificationsClient

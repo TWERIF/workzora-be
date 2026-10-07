@@ -2,6 +2,7 @@ import { NotifierModule } from './common/notifier';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { BlocksModule } from './blocks/blocks.module';
 import { PaymentDataModule } from './payment-data/payment-data.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { ReviewsModule } from './reviews/reviews.module';
@@ -43,7 +44,8 @@ import { UsersModule } from './users/users.module';
         return await dataSource.initialize();
       },
     }),
-    UsersModule, PortfolioModule, PaymentDataModule, ReviewsModule, StatsModule
+    UsersModule,
+    BlocksModule, PortfolioModule, PaymentDataModule, ReviewsModule, StatsModule
   ],
 })
 export class AppModule { }

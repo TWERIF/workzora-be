@@ -33,6 +33,11 @@ export class UserIdDto {
   userId!: string;
 }
 
+export class UserPairDto extends UserIdDto {
+  @IsUUID()
+  otherId!: string;
+}
+
 export class StatsRangeDto {
   @IsISO8601()
   from!: string;

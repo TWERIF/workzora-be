@@ -163,6 +163,11 @@ export class UsersController {
     return this.userService.uploadImage(data);
   }
 
+  @MessagePattern('users.removeAvatar')
+  removeAvatar(@Payload() data: IdDto) {
+    return this.userService.removeAvatar(data.id);
+  }
+
   @MessagePattern('users.getProfilesPreview')
   getProfilesPreview(@Payload() data: ProfilesPreviewDto) {
     return this.userService.getProfilesPreview(data);

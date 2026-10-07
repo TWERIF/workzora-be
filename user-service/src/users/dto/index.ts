@@ -16,7 +16,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { Availability, PreferredBudgetType, PreferredProjectSize, UserRole, WorkType } from '../../types';
+import { Availability, BUDGET_RANGES, PreferredBudgetType, PreferredProjectSize, PROJECT_TYPES, RATE_NOTE_MAX, RATE_TYPES, UserRole, WORK_FORMATS, WorkType } from '../../types';
 
 export class IdDto {
   @IsUUID()
@@ -182,6 +182,27 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEnum(PreferredProjectSize)
   preferredProjectSize?: PreferredProjectSize;
+
+  @IsOptional()
+  @IsIn(RATE_TYPES)
+  rateType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(RATE_NOTE_MAX)
+  rateNote?: string;
+
+  @IsOptional()
+  @IsIn(PROJECT_TYPES)
+  projectType?: string;
+
+  @IsOptional()
+  @IsIn(BUDGET_RANGES)
+  budgetRange?: string;
+
+  @IsOptional()
+  @IsIn(WORK_FORMATS)
+  workFormat?: string;
 
   @IsOptional()
   @IsIn([UserRole.CLIENT, UserRole.FREELANCER])

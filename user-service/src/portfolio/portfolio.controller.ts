@@ -1,6 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { CreatePortfolioDto, DeletePortfolioDto, PaginationDto, UpdatePortfolioDto, UserIdDto, UserIdsDto } from './dto';
+import { CreatePortfolioDto, DeletePortfolioDto, PaginationDto, PortfolioIdDto, UpdatePortfolioDto, UserIdDto, UserIdsDto } from './dto';
 import { PortfolioService } from './portfolio.service';
 
 @Controller()
@@ -20,6 +20,11 @@ export class PortfolioController {
   @MessagePattern('portfolio.delete')
   delete(@Payload() dto: DeletePortfolioDto) {
     return this.portfolioService.delete(dto);
+  }
+
+  @MessagePattern('portfolio.addView')
+  addView(@Payload() dto: PortfolioIdDto) {
+    return this.portfolioService.addView(dto);
   }
 
   @MessagePattern('portfolio.findAll')

@@ -100,7 +100,7 @@ export class UsersService implements OnModuleInit {
 
   async getPublic(id: string) {
     const user = await this.userRepository.findOne({
-      select: [...PUBLIC_USER_FIELDS, 'workType', 'preferredBudgetType', 'preferredProjectSize'],
+      select: [...PUBLIC_USER_FIELDS, 'workType', 'preferredBudgetType', 'preferredProjectSize', 'rateType', 'rateNote', 'projectType', 'budgetRange', 'workFormat'],
       where: { id },
     });
     if (!user) throw new RpcException({ statusCode: 404, message: 'User not found' });
@@ -323,6 +323,11 @@ export class UsersService implements OnModuleInit {
   async uploadImage(data: { userId: string; avatarUrl: string }) {
     const result = await this.userRepository.update(data.userId, { avatarUrl: data.avatarUrl });
     if (!result.affected) throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'User not found' });
+    return { success: true };
+  }
+
+  async removeAvatar(id: string) {
+    await this.userRepository.update(id, { avatarUrl: null });
     return { success: true };
   }
 }
