@@ -15,6 +15,10 @@ export class CreateCategoriesDto {
   @IsString()
   @MaxLength(1000)
   description!: string;
+
+  @IsOptional()
+  @IsUUID()
+  parentId?: string;
 }
 
 export class UpdateCategoriesDto extends IdDto {
@@ -28,6 +32,10 @@ export class UpdateCategoriesDto extends IdDto {
   @IsString()
   @MaxLength(1000)
   description?: string;
+
+  @IsOptional()
+  @IsUUID()
+  parentId?: string | null;
 }
 
 export class CategoriesPageDto {

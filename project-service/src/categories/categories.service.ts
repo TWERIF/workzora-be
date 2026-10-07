@@ -18,9 +18,11 @@ export class CategoriesService {
     ) { }
 
     async create(dto: CreateCategoriesDto): Promise<Category> {
+        if (dto.parentId) await this.assertTopLevel(dto.parentId);
         const category = this.categoryRepository.create({
             title: dto.title,
             description: dto.description,
+            parentId: dto.parentId ?? null,
         });
 
         return this.categoryRepository.save(category);
@@ -74,10 +76,18 @@ export class CategoriesService {
     async update(dto: UpdateCategoriesDto): Promise<Category> {
         const category = await this.findOne(dto.id);
 
+        if (dto.parentId) {
+            if (dto.parentId === category.id) throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'A category cannot be its own parent' });
+            await this.assertTopLevel(dto.parentId);
+            if (await this.categoryRepository.exist({ where: { parentId: category.id } })) {
+                throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'A category with specializations cannot become a specialization' });
+            }
+        }
         Object.assign(category, {
             title: dto.title ?? category.title,
             description:
                 dto.description ?? category.description,
+            parentId: dto.parentId === undefined ? category.parentId : dto.parentId,
         });
 
         return this.categoryRepository.save(category);
@@ -119,6 +129,9 @@ export class CategoriesService {
     }
     async delete(data: { id: string }) {
         const category = await this.findOne(data.id);
+        if (await this.categoryRepository.exist({ where: { parentId: category.id } })) {
+            throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'Remove or move the specializations of this category first' });
+        }
 
         await this.categoryRepository.remove(category);
 
@@ -126,5 +139,43 @@ export class CategoriesService {
             success: true,
             id: data.id,
         };
+    }
+
+    async tree() {
+        const categories = await this.categoryRepository.find({ order: { title: 'ASC' } });
+        const counts: { category_id: string; count: string }[] = await this.categoryRepository.query(
+            `SELECT pc.category_id, COUNT(DISTINCT p.id) AS count
+             FROM project.project_categories pc
+             JOIN project.projects p ON p.id = pc.project_id AND p.status = 'open'
+             GROUP BY pc.category_id`,
+        );
+        const own = new Map(counts.map((row) => [row.category_id, Number(row.count)]));
+        const parents = categories.filter((category) => !category.parentId);
+        return Promise.all(
+            parents.map(async (parent) => {
+                const children = categories.filter((category) => category.parentId === parent.id);
+                const ids = [parent.id, ...children.map((child) => child.id)];
+                const [{ count }] = await this.categoryRepository.query(
+                    `SELECT COUNT(DISTINCT p.id) AS count
+                     FROM project.project_categories pc
+                     JOIN project.projects p ON p.id = pc.project_id AND p.status = 'open'
+                     WHERE pc.category_id = ANY($1)`,
+                    [ids],
+                );
+                return {
+                    id: parent.id,
+                    title: parent.title,
+                    description: parent.description,
+                    count: Number(count),
+                    specializations: children.map((child) => ({ id: child.id, title: child.title, count: own.get(child.id) ?? 0 })),
+                };
+            }),
+        );
+    }
+
+    private async assertTopLevel(id: string) {
+        const parent = await this.categoryRepository.findOne({ where: { id } });
+        if (!parent) throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Parent category not found' });
+        if (parent.parentId) throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'Specializations can only be added to a top-level category' });
     }
 }

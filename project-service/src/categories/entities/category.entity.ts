@@ -17,6 +17,9 @@ export class Category {
     @Column({ type: 'text' })
     description!: string;
 
+    @Column({ type: 'uuid', nullable: true })
+    parentId!: string | null;
+
     @ManyToMany(() => Project, (project) => project.categories)
     projects!: Project[];
 

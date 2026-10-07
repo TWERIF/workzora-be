@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { create, deleteOne, findAll, findOne, update } from './http';
+import { create, deleteOne, findAll, findOne, getTree, update } from './http';
 import type { CreateCategoriesDto } from './types';
 
 export const CATEGORY_KEYS = {
@@ -66,3 +66,4 @@ export const useDeleteCategory = () => {
         },
     });
 };
+export const useCategoryTree = () => useQuery({ queryKey: [...CATEGORY_KEYS.all, 'tree'], queryFn: getTree });

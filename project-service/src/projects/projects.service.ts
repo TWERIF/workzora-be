@@ -306,7 +306,15 @@ export class ProjectsService {
     if (search) {
       qb.andWhere('(project.title ILIKE :search OR project.description ILIKE :search)', { search: `%${search}%` });
     }
-    if (categories?.length) qb.andWhere('category.id IN (:...categories)', { categories });
+    if (categories?.length) {
+      const children = await this.categoryRepository
+        .createQueryBuilder('child')
+        .select('child.id', 'id')
+        .where('child.parentId IN (:...categories)', { categories })
+        .getRawMany<{ id: string }>();
+      const ids = [...new Set([...categories, ...children.map((child) => child.id)])];
+      qb.andWhere('project.id IN (SELECT pc.project_id FROM project.project_categories pc WHERE pc.category_id IN (:...categoryIds))', { categoryIds: ids });
+    }
     if (tags?.length) qb.andWhere('project.tags && :tags', { tags });
     if (minPrice !== undefined) qb.andWhere('project.price >= :minPrice', { minPrice });
     if (maxPrice !== undefined) qb.andWhere('project.price <= :maxPrice', { maxPrice });

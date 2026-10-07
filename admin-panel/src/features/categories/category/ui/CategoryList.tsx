@@ -1,5 +1,6 @@
 import { useCategoryStore } from "@/pages/categories/model/store";
 import type { Category } from "../model/types";
+import { useCategoryTree } from "../../modals/model/useData";
 import CategoryItem from "./CategoryItem";
 
 interface CategoryListProps {
@@ -34,6 +35,9 @@ export default function CategoryList({
             }
         }
     }
+    const { data: tree = [] } = useCategoryTree();
+    const parentTitles = new Map(tree.map((node) => [node.id, node.title]));
+
     return (
         <div className="flex flex-col gap-4 py-[20px]">
             <div className="flex justify-between items-center text-sm text-muted-foreground">
@@ -49,7 +53,7 @@ export default function CategoryList({
                         <CategoryItem
                             key={item.id}
                             id={item.id}
-                            name={item.title}
+                            name={item.parentId ? `${parentTitles.get(item.parentId) ?? "…"} › ${item.title}` : item.title}
                             description={item.description}
                             onClick={() => update(item)}
                         />
