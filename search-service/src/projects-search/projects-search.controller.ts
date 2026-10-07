@@ -1,5 +1,6 @@
 import { Controller } from '@nestjs/common';
-import { Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
+import { IndexIdDto, IndexProjectDto, SearchTermDto } from '../common/index-dto';
 import { SearchProject } from './entities/project.entity';
 import { SearchService } from './projects-search.service';
 
@@ -11,24 +12,23 @@ export class ProjectsSearchController {
 
     @MessagePattern('projects.search')
     async handleSearchProjects(
-        @Payload() data: { searchTerm: string },
-        @Ctx() context: RmqContext,
+        @Payload() data: SearchTermDto,
     ): Promise<SearchProject[]> {
         return await this.searchService.search(data.searchTerm);
     }
 
     @EventPattern('project.created')
-    async handleProjectCreated(@Payload() data: any) {
+    async handleProjectCreated(@Payload() data: IndexProjectDto) {
         await this.searchService.indexProject(data);
     }
 
     @EventPattern('project.updated')
-    async handleProjectUpdated(@Payload() data: any) {
+    async handleProjectUpdated(@Payload() data: IndexProjectDto) {
         await this.searchService.updateIndexedProject(data);
     }
 
     @EventPattern('project.deleted')
-    async handleProjectDeleted(@Payload() data: { id: string }) {
+    async handleProjectDeleted(@Payload() data: IndexIdDto) {
         await this.searchService.removeIndexedProject(data.id);
     }
 }

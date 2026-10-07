@@ -120,7 +120,7 @@ export class PostsService implements OnModuleInit {
             if (!result.affected) {
                 throw new RpcException({ statusCode: 404, message: 'Post not found' });
             }
-            this.searchClient.emit("post.deleted", id);
+            this.searchClient.emit("post.deleted", { id });
             return { success: true };
         } catch (error) {
             throw error;

@@ -17,5 +17,5 @@ export class SearchProject {
         insert: false,
         update: false
     })
-    search_vector: any;
+    search_vector?: string;
 }

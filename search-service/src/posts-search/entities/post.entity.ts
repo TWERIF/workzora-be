@@ -25,5 +25,5 @@ export class SearchPost {
         insert: false,
         update: false
     })
-    search_vector: any;
+    search_vector?: string;
 }
