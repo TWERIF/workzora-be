@@ -57,6 +57,17 @@ export class EscrowController {
     });
   }
 
+  @Get('project/:projectId')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Escrow of a project for its parties' })
+  async getByProject(@Param('projectId', ParseUUIDPipe) projectId: string, @CurrentUser() user: AuthUser) {
+    const project = await sendRpc<ProjectRecord | null>(this.projectClient, 'projects.findOneProject', { id: projectId });
+    const isParty = project && (project.clientId === user.id || project.freelancerId === user.id);
+    if (!isParty && user.role !== UserRole.ADMIN) throw new ForbiddenException('Only the parties of the project can see its escrow');
+    const invoice = await sendRpc<{ id: string; status: number } | null>(this.invoicesClient, 'invoices.getByProjectId', { id: projectId }).catch(() => null);
+    return invoice ? { id: invoice.id, status: invoice.status } : null;
+  }
+
   @Get(':id')
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Escrow details for its parties or an admin' })
