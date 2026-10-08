@@ -11,7 +11,7 @@ export const HELP_CATEGORIES = [
 
 export const HELP_LOCALES = [
     { value: "uk", label: "Українська" },
-    { value: "en", label: "English" },
+    { value: "en", label: "Англійська" },
 ] as const;
 
 export const categoryLabel = (value: string) => HELP_CATEGORIES.find((item) => item.value === value)?.label ?? value;

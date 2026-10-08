@@ -107,7 +107,7 @@ export const WithdrawalModal = ({ withdrawalId, open, onOpenChange }: Withdrawal
                                 </div>
                                 {!withdrawal.cardNumber && (
                                     <p className="mt-1 text-xs text-muted-foreground">
-                                        Користувач видалив або змінив картку — уточніть реквізити.
+                                        Користувач видалив або змінив картку. Уточніть реквізити.
                                     </p>
                                 )}
                             </div>

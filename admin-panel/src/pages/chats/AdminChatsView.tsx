@@ -17,7 +17,7 @@ export default function AdminChatsView() {
         });
 
     if (isLoading) {
-        return <div>Loading...</div>;
+        return <div>Завантаження...</div>;
     }
 
     return (
