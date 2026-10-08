@@ -145,8 +145,8 @@ export const renderCodeEmail = (kind: CodeEmailKind, locale: EmailLocale, code: 
 ${button}
 <tr><td style="padding-top:12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f6e7;border:1px solid #d8e3b9;border-radius:22px"><tr><td style="padding:24px">
-<p style="margin:0 0 12px;font-size:16px;font-weight:600;color:#7ea310">${text.securityTitle}</p>
-<p style="margin:0;font-size:14px;line-height:1.6;color:#999999">${text.securityText}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 12px"><tr><td valign="middle" style="padding-right:8px"><img src="${assetsUrl()}/images/email/info.png" width="24" height="24" alt="" style="display:block;border:0"></td><td valign="middle" style="font-size:16px;font-weight:600;color:#7ea310;font-family:${FONT}">${text.securityTitle}</td></tr></table>
+<p style="margin:0;font-size:14px;line-height:1.5;color:#999999">${text.securityText}</p>
 </td></tr></table>
 </td></tr>
 <tr><td style="padding:24px 0 16px;border-bottom:1px solid #e5e5e5">
@@ -157,7 +157,7 @@ ${button}
 <p style="margin:0 0 8px;font-size:16px;font-weight:600">${text.helpTitle}</p>
 <p style="margin:0;font-size:12px;line-height:1.6">${text.helpText} <a href="${site}/${locale}/contacts" style="color:#7ea310;text-decoration:none">${text.helpLink}</a></p>
 </td></tr>
-<tr><td align="center" style="padding-top:24px;font-size:11px;line-height:1.8;color:#999999">${rights}<br>${text.slogan}</td></tr>
+<tr><td align="center" style="padding-top:24px;font-size:12px;line-height:1.5;color:#999999">${rights}<br>${text.slogan}</td></tr>
 </table>
 </td></tr>
 </table>
