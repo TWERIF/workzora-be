@@ -13,7 +13,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
@@ -41,7 +41,7 @@ jobs:
           timeout: 120s
           command_timeout: 30m
 
-      - name: Build and restart containers
+      - name: Build services one by one and restart
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -49,15 +49,22 @@ jobs:
           username: root
           password: ${{ secrets.VPS_PASSWORD }}
           timeout: 120s
-          command_timeout: 50m
+          command_timeout: 110m
           script: |
             set -e
+            exec 9>/var/lock/workzora-deploy.lock
+            echo "Waiting for other deploys to finish"
+            flock -w 3600 9
             cd /var/www/workzora-be
             if docker compose version >/dev/null 2>&1; then
               DC="docker compose"
             else
               DC="docker-compose"
             fi
-            $DC up -d --build --remove-orphans
+            for service in $($DC config --services); do
+              echo "=== Building $service"
+              $DC build "$service"
+            done
+            $DC up -d --remove-orphans
             docker image prune -f
             $DC ps
