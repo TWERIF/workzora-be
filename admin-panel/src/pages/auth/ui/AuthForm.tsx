@@ -16,7 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { useAuth } from "../model/useAuth"
+import { NOT_ADMIN, useAuth } from "../model/useAuth"
 import { formSchema } from "../model/zod"
 
 export function AuthForm() {
@@ -39,7 +39,9 @@ export function AuthForm() {
         });
       } catch (error) {
         toast.error("Помилка авторизації", {
-          description: "Невірний email або пароль, спробуйте ще раз.",
+          description: error instanceof Error && error.message === NOT_ADMIN
+            ? "Цей акаунт не має доступу до адмін-панелі."
+            : "Невірний email або пароль, спробуйте ще раз.",
         });
       }
     },
