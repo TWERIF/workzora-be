@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { HelpModule } from './help/help.module';
 import { PostsModule } from './posts/posts.module';
 
 @Module({
@@ -10,9 +11,9 @@ import { PostsModule } from './posts/posts.module';
         type: 'postgres',
         host: process.env.POSTGRES_HOST || 'postgres',
         port: Number(process.env.POSTGRES_PORT) || 5432,
-        username: process.env.POSTGRES_USER || 'workzorauser',
-        password: process.env.POSTGRES_PASSWORD || 'J95jACtFtadE',
-        database: process.env.POSTGRES_DB || 'workzoradb',
+        username: process.env.POSTGRES_USER,
+        password: process.env.POSTGRES_PASSWORD,
+        database: process.env.POSTGRES_DB,
         autoLoadEntities: true,
         synchronize: true,
       }),
@@ -38,6 +39,7 @@ import { PostsModule } from './posts/posts.module';
       },
     }),
     PostsModule,
+    HelpModule,
   ],
 })
 export class AppModule { }
