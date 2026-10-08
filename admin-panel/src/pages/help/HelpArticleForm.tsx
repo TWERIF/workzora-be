@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { useHelpArticle, useSaveHelpArticle } from "@/features/help/model/useHelp";
 import { HELP_CATEGORIES, HELP_LOCALES, type HelpArticleInput } from "@/features/help/model/types";
 import TipTapEditor from "@/shared/components/TipTapEditor";
-import { isAxiosError } from "axios";
+import { apiErrorMessage } from "@/shared/utils/apiError";
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,8 +12,6 @@ const EMPTY: HelpArticleInput = { category: HELP_CATEGORIES[0].value, locale: "u
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const selectClass = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm";
 
-const errorText = (error: unknown) =>
-    isAxiosError<{ message?: string | string[] }>(error) ? [error.response?.data?.message].flat().filter(Boolean).join(", ") || "Помилка запиту" : "Помилка запиту";
 
 const Label = ({ htmlFor, children }: { htmlFor: string; children: string }) => (
     <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-medium">
@@ -52,7 +50,7 @@ export default function HelpArticleForm() {
             toast.success(id ? "Статтю оновлено" : "Статтю створено");
             navigate("/help");
         } catch (error) {
-            toast.error(errorText(error));
+            toast.error(apiErrorMessage(error));
         }
     };
 

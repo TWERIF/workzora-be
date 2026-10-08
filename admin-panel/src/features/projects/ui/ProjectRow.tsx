@@ -28,7 +28,7 @@ export function ProjectRow({ project, isBusy, onDelete, onClose, onToggleFeature
             <td className="py-3 pr-4">
                 <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
                     {project.title}
-                    {project.isFeatured && <Badge>Featured</Badge>}
+                    {project.isFeatured && <Badge>У топі</Badge>}
                     {project.isUrgent && <Badge variant="secondary">ASAP</Badge>}
                 </p>
                 <p className="text-xs text-muted-foreground">

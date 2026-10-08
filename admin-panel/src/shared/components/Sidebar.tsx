@@ -87,7 +87,7 @@ const Sidebar: React.FC = () => {
       >
         <div className="p-6 px-[30px] flex items-center gap-3">
           <h1 className="text-xl font-bold tracking-tight">
-            AdminPanel
+            Адмін-панель
           </h1>
         </div>
 

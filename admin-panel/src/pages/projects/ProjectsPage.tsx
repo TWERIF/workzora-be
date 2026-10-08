@@ -6,17 +6,13 @@ import { useAdminProjects, useCloseProject, useDeleteProject, useSetFeatured } f
 import { PROJECT_STATUS_LABELS, ProjectRow } from "@/features/projects/ui/ProjectRow";
 import DeleteDialog from "@/shared/components/DeleteDialog";
 import Pagination from "@/shared/components/Pagination";
-import { isAxiosError } from "axios";
+import { apiErrorMessage } from "@/shared/utils/apiError";
 import { FolderOpen } from "lucide-react";
 import { useState } from "react";
 
 const LIMIT = 15;
 const STATUSES: (ProjectStatus | undefined)[] = [undefined, "open", "awaiting_payment", "in_progress", "completed", "closed"];
 
-const errorMessage = (error: unknown) =>
-    isAxiosError<{ message?: string | string[] }>(error)
-        ? [error.response?.data?.message].flat().filter(Boolean).join(", ") || "Помилка запиту"
-        : "Помилка запиту";
 
 export default function ProjectsPage() {
     const [page, setPage] = useState(1);
@@ -40,7 +36,7 @@ export default function ProjectsPage() {
         try {
             await deleteMutation.mutateAsync(toDelete.id);
         } catch (error) {
-            setActionError(errorMessage(error));
+            setActionError(apiErrorMessage(error));
         }
         setToDelete(null);
     };
@@ -50,7 +46,7 @@ export default function ProjectsPage() {
         try {
             await closeMutation.mutateAsync(project.id);
         } catch (error) {
-            setActionError(errorMessage(error));
+            setActionError(apiErrorMessage(error));
         }
     };
 
@@ -59,7 +55,7 @@ export default function ProjectsPage() {
         try {
             await featuredMutation.mutateAsync({ id: project.id, isFeatured: !project.isFeatured });
         } catch (error) {
-            setActionError(errorMessage(error));
+            setActionError(apiErrorMessage(error));
         }
     };
 

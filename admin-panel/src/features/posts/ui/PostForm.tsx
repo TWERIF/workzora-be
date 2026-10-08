@@ -126,7 +126,7 @@ export default function PostForm() {
                                         <div className="mt-3 flex flex-col gap-2">
                                             <img
                                                 src={URL.createObjectURL(selectedFile)}
-                                                alt="Preview"
+                                                alt="Нова обкладинка"
                                                 className="max-h-48 w-auto rounded-md object-cover border shadow-sm"
                                             />
                                             <p className="text-sm text-muted-foreground">
@@ -139,7 +139,7 @@ export default function PostForm() {
                                         <div className="mt-3 flex flex-col gap-2">
                                             <img
                                                 src={post.imageUrl}
-                                                alt="Current post image"
+                                                alt="Поточна обкладинка"
                                                 className="max-h-48 w-auto rounded-md object-cover border shadow-sm opacity-70"
                                             />
                                             <p className="text-sm text-muted-foreground">
@@ -214,7 +214,7 @@ export default function PostForm() {
                     <form.Field name="teaser">
                         {(field) => (
                             <TipTapEditor
-                                label="teaser"
+                                label="Тизер"
                                 value={field.state.value as string}
                                 onChange={(value) => field.handleChange(value)}
                             />
