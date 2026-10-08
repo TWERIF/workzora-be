@@ -6,7 +6,12 @@ import CategoriesPage from './pages/categories/ui/CategoriesPage';
 import AdminChatsView from './pages/chats/AdminChatsView';
 import AdminKyc from './pages/kyc/ui/AdminKyc';
 import PaymentsPage from './pages/Payments/PaymentsPage';
+import HelpArticleForm from './pages/help/HelpArticleForm';
+import HelpPage from './pages/help/HelpPage';
 import PostsPage from './pages/posts/PostsPage';
+import ProjectsPage from './pages/projects/ProjectsPage';
+import StatsPage from './pages/stats/StatsPage';
+import SupportPage from './pages/support/SupportPage';
 import Layout from './shared/components/Layout';
 
 export default function App() {
@@ -16,12 +21,21 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
-          <Route path="/" element={<Navigate to="/categories" replace />} />
+          <Route path="/" element={<Navigate to="/stats" replace />} />
+
+          <Route path="/stats" element={<StatsPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/support" element={<SupportPage />} />
 
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/chats" element={<AdminChatsView />} />
           <Route path="/kyc" element={<AdminKyc />} />
           <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/help" element={<Outlet />}>
+            <Route index element={<HelpPage />} />
+            <Route path="create" element={<HelpArticleForm />} />
+            <Route path=":id" element={<HelpArticleForm />} />
+          </Route>
           <Route path="/posts" element={<Outlet />}>
             <Route index element={<PostsPage />} />
             <Route path="create" element={<PostForm />} />

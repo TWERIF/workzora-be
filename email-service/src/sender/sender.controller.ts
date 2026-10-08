@@ -1,21 +1,26 @@
-import { Controller, Logger } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import type { EmailData } from '../types';
+import { renderCodeEmail } from '../templates/code-email';
+import { CodeEmailDto, EmailData } from '../types';
 import { SenderService } from './sender.service';
 
 @Controller()
 export class SenderController {
-    private readonly logger = new Logger(SenderController.name);
-
     constructor(private readonly senderService: SenderService) { }
 
     @MessagePattern('send_email')
-    async send(@Payload() data: EmailData) {
-        try {
-            return await this.senderService.send(data);
-        } catch (error) {
-            this.logger.error('Не вдалося відправити лист', error);
-            throw error;
-        }
+    send(@Payload() data: EmailData) {
+        return this.senderService.send(data);
+    }
+
+    @MessagePattern('send_code_email')
+    sendCode(@Payload() data: CodeEmailDto) {
+        const { subject, html } = renderCodeEmail(data.kind, data.locale ?? 'en', data.code, data.to);
+        return this.senderService.send({
+            subject,
+            html,
+            from: { name: 'WorkZora', email: process.env.SMTP_USER ?? '' },
+            to: { name: data.to, email: data.to },
+        });
     }
 }

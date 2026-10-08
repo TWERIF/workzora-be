@@ -1,4 +1,4 @@
-import { usePost, usePostList } from "@/features/posts/model/usePosts";
+import { usePost, usePostList, useSearchPosts } from "@/features/posts/model/usePosts";
 import PostList from "@/features/posts/ui/PostList";
 import Manage from "@/shared/components/manage/ui/Manage";
 import { useState } from "react";
@@ -10,7 +10,11 @@ export default function PostsPage() {
     const [page, setPage] = useState(1);
     const limit = 10;
 
+    const [query, setQuery] = useState("");
+    const isSearching = query.trim().length > 0;
+
     const { data, isLoading } = usePostList(page, limit);
+    const { data: found = [] } = useSearchPosts(query);
 
     const {
         deleteMutation
@@ -38,8 +42,8 @@ export default function PostsPage() {
 
             <Manage
                 title="Пости"
-                query=""
-                onSearch={(s) => console.log(s)}
+                query={query}
+                onSearch={setQuery}
                 onCreate={() => navigate("/posts/create")}
                 isUpdateSelected={false}
                 onUpdate={() => { }}
@@ -47,7 +51,16 @@ export default function PostsPage() {
             />
 
 
-            {data && (
+            {isSearching ? (
+                <PostList
+                    items={found}
+                    page={1}
+                    totalPages={1}
+                    total={found.length}
+                    onPageChange={setPage}
+                    onDelete={deletePostHandler}
+                />
+            ) : data && (
                 <PostList
                     items={data.data}
                     page={data.page}

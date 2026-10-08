@@ -1,13 +1,13 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Notifier } from '../common/notifier';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
-import { Id } from '../categories/dto';
 import { Category } from '../categories/entities/category.entity';
 import { ChatService } from '../chat/chat.service';
-import { AwaitingPaymentDto, CreateProjectDto, FindProjectsDto, MyProjectsDto, UpdateProjectDto } from './dto';
+import { AdminProjectsDto, ClientProjectsDto, AwaitingPaymentDto, CompleteProjectDto, CreateProjectDto, FeaturedDto, FindProjectsDto, IdDto, MyProjectsDto, UpdateProjectDto } from './dto';
 import { Project, ProjectStatus } from './entities/project.entity';
 
 @Injectable()
@@ -25,7 +25,12 @@ export class ProjectsService {
     @Inject('BIDS_SERVICE')
     private readonly bidsClient: ClientProxy,
 
-    private readonly chatService: ChatService
+    @Inject('ESCROW_SERVICE')
+    private readonly escrowClient: ClientProxy,
+
+    private readonly chatService: ChatService,
+
+    private readonly notifier: Notifier,
   ) { }
   async count() {
     try {
@@ -46,6 +51,7 @@ export class ProjectsService {
       tags: dto.tags ?? [],
       clientId: dto.clientId,
       price: dto.price,
+      isUrgent: dto.isUrgent ?? false,
     });
 
     await this.projectRepository.save(project);
@@ -61,7 +67,7 @@ export class ProjectsService {
       },
     });
     if (!project) {
-      throw new NotFoundException('Project not found');
+      throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
     }
 
     if (dto.title !== undefined) {
@@ -82,7 +88,7 @@ export class ProjectsService {
       });
 
       if (categories.length !== dto.categories.length) {
-        throw new BadRequestException('One or more categories not found');
+        throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'One or more categories not found' });
       }
 
       project.categories = categories;
@@ -92,15 +98,10 @@ export class ProjectsService {
       project.price = dto.price;
     }
 
-    if (dto.clientId !== undefined) {
-      project.clientId = dto.clientId;
+    if (dto.isUrgent !== undefined) {
+      project.isUrgent = dto.isUrgent;
     }
-    if (dto.status) {
-      project.status = dto.status;
-    }
-    if (dto.freelancerId) {
-      project.freelancerId = dto.freelancerId;
-    }
+
 
     await this.projectRepository.save(project);
 
@@ -116,7 +117,13 @@ export class ProjectsService {
       });
 
       if (!project) {
-        throw new NotFoundException('Project not found');
+        throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
+      }
+      if (project.clientId !== data.clientId) {
+        throw new RpcException({ statusCode: HttpStatus.FORBIDDEN, message: 'Only the project owner can choose a freelancer' });
+      }
+      if (project.status !== ProjectStatus.OPEN) {
+        throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'A freelancer has already been chosen for this project' });
       }
 
       const wonBid = await firstValueFrom(
@@ -138,23 +145,32 @@ export class ProjectsService {
       const systemMessageContent = 'Вітаємо! Виконавець був обраний. Проект перейшов у статус очікування оплати. Будь ласка, зарезервуйте кошти для початку роботи.';
       await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
 
+      this.notifier.notify({
+        userId: data.freelancerId,
+        type: 'projects',
+        key: 'freelancerSelected',
+        params: { project: project.title },
+        link: `/chats/${project.id}`,
+      });
+
       return saved;
     } catch (error) {
       throw error;
     }
   }
 
-  async toInProgress(data: Id) {
+  async toInProgress(data: IdDto) {
     try {
       const project = await this.projectRepository.findOne({
         where: { id: data.id },
       });
 
       if (!project) {
-        throw new NotFoundException('Project not found');
+        throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
       }
 
       project.status = ProjectStatus.IN_PROGRESS;
+      project.startedAt = new Date();
 
       await this.projectRepository.save(project);
 
@@ -163,61 +179,91 @@ export class ProjectsService {
       const systemMessageContent = 'Кошти зарезервовано, проект переведено до статусу виконання!';
       await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
 
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async toInCompleted(data: Id) {
-    try {
-      const project = await this.projectRepository.findOne({
-        where: { id: data.id },
-      });
-
-      if (!project) {
-        throw new NotFoundException('Project not found');
+      if (project.freelancerId) {
+        this.notifier.notify({
+          userId: project.freelancerId,
+          type: 'payments',
+          key: 'fundsReserved',
+          params: { project: project.title },
+          link: `/chats/${project.id}`,
+        });
       }
 
-      project.status = ProjectStatus.COMPLETED;
-
-      await this.projectRepository.save(project);
-
-      const chat = await this.chatService.findOrCreateChat(data.id);
-
-      const systemMessageContent = 'Проект виконано, тепер можете обмінятися відгуками. Виконавець, очікуйте на оплату протягом 24 годин';
-      await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
-
     } catch (error) {
       throw error;
     }
   }
 
-  async toClosed(data: Id) {
-    try {
-      const project = await this.projectRepository.findOne({
-        where: { id: data.id },
+  async toInCompleted(data: CompleteProjectDto) {
+    const project = await this.projectRepository.findOne({
+      where: { id: data.id },
+    });
+
+    if (!project) {
+      throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
+    }
+    if (project.clientId !== data.clientId) {
+      throw new RpcException({ statusCode: HttpStatus.FORBIDDEN, message: 'Only the project owner can complete it' });
+    }
+    if (project.status !== ProjectStatus.IN_PROGRESS) {
+      throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'Only a project in progress can be completed' });
+    }
+
+    await firstValueFrom(
+      this.escrowClient.send('invoices.release', { projectId: project.id, clientId: data.clientId }),
+    ).catch((error) => {
+      throw new RpcException(error);
+    });
+
+    project.status = ProjectStatus.COMPLETED;
+    project.completedAt = new Date();
+    const saved = await this.projectRepository.save(project);
+
+    const chat = await this.chatService.findOrCreateChat(data.id);
+
+    const systemMessageContent = 'Проект виконано, кошти зараховано на баланс виконавця. Тепер можете обмінятися відгуками.';
+    await this.chatService.sendSystemMessage(chat.id, project.id, systemMessageContent);
+
+    for (const userId of [project.clientId, project.freelancerId]) {
+      if (!userId) continue;
+      this.notifier.notify({
+        userId,
+        type: 'projects',
+        key: 'projectCompleted',
+        params: { project: project.title },
+        link: `/review/${project.id}`,
       });
-
-      if (!project) {
-        throw new NotFoundException('Project not found');
-      }
-
-      project.status = ProjectStatus.CLOSED;
-
-      await this.projectRepository.save(project);
-
-    } catch (error) {
-      throw error;
     }
+
+    return saved;
   }
 
-  async delete({ id }: Id) {
+  async setFeatured({ id, isFeatured }: FeaturedDto) {
+    const result = await this.projectRepository.update(id, { isFeatured });
+    if (!result.affected) throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
+    return { success: true };
+  }
+
+  async toClosed(data: IdDto) {
+    const project = await this.projectRepository.findOne({ where: { id: data.id } });
+    if (!project) throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
+    if (project.status === ProjectStatus.IN_PROGRESS) {
+      throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'A paid project in progress cannot be closed' });
+    }
+
+    project.status = ProjectStatus.CLOSED;
+    await this.projectRepository.save(project);
+    return { success: true };
+  }
+
+
+  async delete({ id }: IdDto) {
     const project = await this.projectRepository.findOne({
       where: { id },
     });
 
     if (!project) {
-      throw new NotFoundException('Project not found');
+      throw new RpcException({ statusCode: HttpStatus.NOT_FOUND, message: 'Project not found' });
     }
 
     await this.projectRepository.remove(project);
@@ -253,53 +299,43 @@ export class ProjectsService {
     }));
   }
 
-  async getProjects({
-    search,
-    categories,
-    tags,
-    minPrice,
-    maxPrice,
-    page = 1,
-    limit = 10,
-  }: FindProjectsDto) {
-    const skip = (page - 1) * limit;
-    console.log(`query started`);
+  getProjects(dto: FindProjectsDto) {
+    return this.listProjects(dto, [ProjectStatus.OPEN]);
+  }
 
-    const qb = this.projectRepository
-      .createQueryBuilder('project')
-      .leftJoinAndSelect('project.categories', 'category')
-      // .where('project.status = :status', { status: ProjectStatus.OPEN }); 
+  adminList({ status, ...dto }: AdminProjectsDto) {
+    return this.listProjects(dto, status ? [status] : undefined);
+  }
 
+  private async listProjects(
+    { search, categories, tags, minPrice, maxPrice, sort, page = 1, limit = 10 }: FindProjectsDto,
+    statuses?: ProjectStatus[],
+  ) {
+    const qb = this.projectRepository.createQueryBuilder('project').leftJoinAndSelect('project.categories', 'category');
+
+    if (statuses?.length) qb.andWhere('project.status IN (:...statuses)', { statuses });
     if (search) {
-      qb.andWhere(
-        '(project.title ILIKE :search OR project.description ILIKE :search)',
-        { search: `%${search}%` },
-      );
+      qb.andWhere('(project.title ILIKE :search OR project.description ILIKE :search)', { search: `%${search}%` });
     }
-
     if (categories?.length) {
-      qb.andWhere('category.id IN (:...categories)', { categories });
+      const children = await this.categoryRepository
+        .createQueryBuilder('child')
+        .select('child.id', 'id')
+        .where('child.parentId IN (:...categories)', { categories })
+        .getRawMany<{ id: string }>();
+      const ids = [...new Set([...categories, ...children.map((child) => child.id)])];
+      qb.andWhere('project.id IN (SELECT pc.project_id FROM project.project_categories pc WHERE pc.category_id IN (:...categoryIds))', { categoryIds: ids });
     }
+    if (tags?.length) qb.andWhere('project.tags && :tags', { tags });
+    if (minPrice !== undefined) qb.andWhere('project.price >= :minPrice', { minPrice });
+    if (maxPrice !== undefined) qb.andWhere('project.price <= :maxPrice', { maxPrice });
 
-    if (tags?.length) {
-      qb.andWhere('project.tags && :tags', { tags });
-    }
-
-    if (minPrice !== undefined) {
-      qb.andWhere('project.price >= :minPrice', { minPrice });
-    }
-
-    if (maxPrice !== undefined) {
-      qb.andWhere('project.price <= :maxPrice', { maxPrice });
-    }
-
-    qb.orderBy('project.createdAt', 'DESC').skip(skip).take(limit);
+    if (sort === 'top') qb.orderBy('project.isFeatured', 'DESC').addOrderBy('project.views', 'DESC').addOrderBy('project.createdAt', 'DESC');
+    else qb.orderBy('project.createdAt', 'DESC');
+    qb.skip((page - 1) * limit).take(limit);
 
     const [projects, total] = await qb.getManyAndCount();
     const data = await this.attachProposalsCounts(projects);
-
-    console.log(`data: ${data}`)
-
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
@@ -317,9 +353,25 @@ export class ProjectsService {
     return { ...project, proposalsCount };
   }
 
+  async findLastByClients(ids: string[]) {
+    if (!ids?.length) return {};
+
+    const projects = await this.projectRepository
+      .createQueryBuilder('project')
+      .distinctOn(['project.clientId'])
+      .where('project.clientId IN (:...ids)', { ids })
+      .orderBy('project.clientId')
+      .addOrderBy('project.createdAt', 'DESC')
+      .getMany();
+
+    const withCounts = await this.attachProposalsCounts(projects);
+    return Object.fromEntries(withCounts.map((p) => [p.clientId, p]));
+  }
+
   async getTopProjects() {
     const projects = await this.projectRepository.find({
-      order: { views: 'DESC' },
+      where: { status: ProjectStatus.OPEN },
+      order: { isFeatured: 'DESC', views: 'DESC' },
       relations: { categories: true },
       take: 6,
     });
@@ -328,20 +380,26 @@ export class ProjectsService {
   }
 
   async findMyProjects(data: MyProjectsDto) {
-    const { status, userId, page = 1, limit = 10 } = data;
+    const { status, group, userId, page = 1, limit = 10 } = data;
     const skip = (page - 1) * limit;
 
-    const [items, total] = await this.projectRepository
+    const query = this.projectRepository
       .createQueryBuilder("project")
       .leftJoinAndSelect('project.categories', 'category')
-      .where(
-        "(project.clientId = :userId OR project.freelancerId = :userId)",
-        { userId }
-      )
-      .andWhere("project.status = :status", { status: status as ProjectStatus })
+      .where("(project.clientId = :userId OR project.freelancerId = :userId)", { userId })
+      .orderBy("project.updatedAt", "DESC")
       .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+      .take(limit);
+
+    if (group === 'deals') {
+      query.andWhere("project.status IN (:...statuses)", {
+        statuses: [ProjectStatus.AWAITING_PAYMENT, ProjectStatus.IN_PROGRESS, ProjectStatus.COMPLETED],
+      });
+    } else if (status) {
+      query.andWhere("project.status = :status", { status });
+    }
+
+    const [items, total] = await query.getManyAndCount();
 
     return {
       items,
@@ -352,6 +410,100 @@ export class ProjectsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
 
+  async stats({ from, to }: { from: string; to: string }) {
+    const byDay: { day: string; count: string }[] = await this.projectRepository.query(
+      `SELECT to_char(("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Kyiv')::date, 'YYYY-MM-DD') AS day, count(*) AS count
+       FROM project.projects
+       WHERE ("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Kyiv')::date BETWEEN $1 AND $2
+       GROUP BY 1 ORDER BY 1`,
+      [from, to],
+    );
+    const byStatus: { status: string; count: string }[] = await this.projectRepository.query(
+      `SELECT status, count(*) AS count FROM project.projects GROUP BY status`,
+    );
+
+    return {
+      total: byStatus.reduce((sum, r) => sum + Number(r.count), 0),
+      byStatus: Object.fromEntries(byStatus.map((r) => [r.status, Number(r.count)])),
+      byDay: byDay.map((r) => ({ day: r.day, count: Number(r.count) })),
+    };
+  }
+
+  async userStats({ userId }: { userId: string }) {
+    const count = (where: Partial<Record<'clientId' | 'freelancerId', string>> & { status?: ProjectStatus }) =>
+      this.projectRepository.count({ where });
+    const [completedAsFreelancer, takenAsFreelancer, posted, completedAsClient] = await Promise.all([
+      count({ freelancerId: userId, status: ProjectStatus.COMPLETED }),
+      this.projectRepository.count({
+        where: [
+          { freelancerId: userId, status: ProjectStatus.IN_PROGRESS },
+          { freelancerId: userId, status: ProjectStatus.COMPLETED },
+        ],
+      }),
+      count({ clientId: userId }),
+      count({ clientId: userId, status: ProjectStatus.COMPLETED }),
+    ]);
+    return { completedAsFreelancer, takenAsFreelancer, posted, completedAsClient };
+  }
+
+  async byClient({ clientId, status, page, limit }: ClientProjectsDto) {
+    const statuses =
+      status === 'completed'
+        ? [ProjectStatus.COMPLETED]
+        : [ProjectStatus.OPEN, ProjectStatus.AWAITING_PAYMENT, ProjectStatus.IN_PROGRESS];
+    const [items, total] = await this.projectRepository.findAndCount({
+      where: { clientId, status: In(statuses) },
+      relations: { categories: true },
+      order: { updatedAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return {
+      data: items.map((project) => ({
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        price: Number(project.price),
+        tags: project.tags,
+        views: project.views,
+        status: project.status,
+        createdAt: project.createdAt,
+        categories: project.categories.map((category) => ({ id: category.id, title: category.title })),
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
+  }
+
+  async sharedProject({ userId, otherId }: { userId: string; otherId: string }) {
+    const project = await this.projectRepository.findOne({
+      where: [
+        { clientId: userId, freelancerId: otherId },
+        { clientId: otherId, freelancerId: userId },
+      ],
+      order: { updatedAt: 'DESC' },
+      select: { id: true, status: true },
+    });
+    return { projectId: project?.id ?? null };
+  }
+
+  async countActiveDeals({ userId }: { userId: string }) {
+    const asClient = await this.projectRepository.count({
+      where: [
+        { clientId: userId, status: ProjectStatus.AWAITING_PAYMENT },
+        { clientId: userId, status: ProjectStatus.IN_PROGRESS },
+      ],
+    });
+    const asFreelancer = await this.projectRepository.count({
+      where: [
+        { freelancerId: userId, status: ProjectStatus.AWAITING_PAYMENT },
+        { freelancerId: userId, status: ProjectStatus.IN_PROGRESS },
+      ],
+    });
+    return { asClient, asFreelancer, total: asClient + asFreelancer };
   }
 }

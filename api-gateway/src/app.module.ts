@@ -14,6 +14,11 @@ import { PostsModule } from './posts/posts.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { EscrowModule } from './escrow/escrow.module';
 import { PaymentDataModule } from './payment-data/payment-data.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { StatsModule } from './stats/stats.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { NewsletterModule } from './newsletter/newsletter.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -60,6 +65,11 @@ import { PaymentDataModule } from './payment-data/payment-data.module';
     PortfolioModule,
     EscrowModule,
     PaymentDataModule,
+    ReviewsModule,
+    StatsModule,
+    SupportModule,
+    NotificationsModule,
+    NewsletterModule,
   ],
   providers: [
     {

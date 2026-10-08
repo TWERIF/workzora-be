@@ -17,12 +17,19 @@ export default function CategoriesPage() {
     const [isUpdateOpen, setIsUpdateOpen] = useState(false);
 
     const [page, setPage] = useState(1);
+    const [search, setSearch] = useState("");
     const limit = 20;
 
     const { data, isLoading } = useCategoriesList({
         page,
         limit,
+        search,
     });
+
+    const changeSearch = (value: string) => {
+        setSearch(value);
+        setPage(1);
+    };
 
     const deleteItem = () => {
         if (category) {
@@ -39,8 +46,8 @@ export default function CategoriesPage() {
         <div className="mt-10 px-4 md:px-[5%] lg:px-[10%] py-4 md:py-[1%]">
             <Manage
                 title="Категорії"
-                query=""
-                onSearch={(s) => console.log(s)}
+                query={search}
+                onSearch={changeSearch}
                 onCreate={() => setIsCreateOpen(true)}
                 isUpdateSelected={category ? true : false}
                 onUpdate={() => setIsUpdateOpen(true)}

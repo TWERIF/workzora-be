@@ -1,100 +1,151 @@
-import {
-    Injectable,
-} from '@nestjs/common';
+import { HttpStatus, Injectable, OnModuleInit } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CardCryptoService } from './crypto.service';
-import { CardDto } from './dto';
+import { AddCardDto, CardDto, CardRefDto } from './dto';
 import { PaymentData } from './entities/paymentData.entity';
 
+type SafePaymentData = Omit<PaymentData, 'cardNumberEncrypted' | 'cardNumberIv' | 'cardNumberAuthTag'>;
+
+const MAX_CARDS = 5;
+
+const rpcError = (statusCode: HttpStatus, message: string) => new RpcException({ statusCode, message });
+
+const passesLuhn = (number: string) => {
+  let sum = 0;
+  for (let i = 0; i < number.length; i++) {
+    let digit = Number(number[number.length - 1 - i]);
+    if (i % 2 === 1) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+  return sum % 10 === 0;
+};
+
+const detectBrand = (number: string) => {
+  if (/^4/.test(number)) return 'visa';
+  if (/^(5[1-5]|2(2[2-9]|[3-6]\d|7[01]|720))/.test(number)) return 'mastercard';
+  if (/^3[47]/.test(number)) return 'amex';
+  return 'card';
+};
+
+const isExpired = (expiry: string) => {
+  const [month, year] = expiry.split('/').map(Number);
+  return new Date(2000 + year, month, 1).getTime() <= Date.now();
+};
+
 @Injectable()
-export class PaymentDataService {
-    constructor(
-        @InjectRepository(PaymentData)
-        private readonly paymentDataRepository: Repository<PaymentData>,
-        private readonly crypto: CardCryptoService,
-    ) { }
+export class PaymentDataService implements OnModuleInit {
+  constructor(
+    @InjectRepository(PaymentData)
+    private readonly paymentDataRepository: Repository<PaymentData>,
+    private readonly crypto: CardCryptoService,
+  ) {}
 
-    async create(data: CardDto): Promise<Omit<PaymentData, 'cardNumberEncrypted' | 'cardNumberIv' | 'cardNumberAuthTag'>> {
-        console.log(`Create`);
-        const existing = await this.paymentDataRepository.findOne({
-            where: { userId: data.userId },
-        });
-        console.log(`existing: ${existing}`);
-        if (existing) {
-            throw new RpcException(
-                `Payment data for user ${data.userId} already exists, use update instead`,
-            );
-        }
+  async onModuleInit() {
+    await this.paymentDataRepository.query(`
+      UPDATE payment_data.payment_datas p SET "isPrimary" = true
+      WHERE NOT EXISTS (SELECT 1 FROM payment_data.payment_datas q WHERE q."userId" = p."userId" AND q."isPrimary")
+        AND p.id = (SELECT r.id FROM payment_data.payment_datas r WHERE r."userId" = p."userId" ORDER BY r."createdAt" LIMIT 1)
+    `);
+  }
 
-        const { encrypted, iv, authTag } = this.crypto.encrypt(data.cardNumber);
-        console.log(`encrypted: ${encrypted}, iv: ${iv}, authTag: ${authTag}`);
-        const paymentData = this.paymentDataRepository.create({
-            userId: data.userId,
-            cardNumberEncrypted: encrypted,
-            cardNumberIv: iv,
-            cardNumberAuthTag: authTag,
-            maskedCardNumber: this.mask(data.cardNumber),
-        });
-        console.log(`paymentData: ${paymentData}`);
-        const saved = await this.paymentDataRepository.save(paymentData);
-        console.log("saved");
-        return this.stripSensitive(saved);
+  async list(userId: string): Promise<SafePaymentData[]> {
+    const cards = await this.paymentDataRepository.find({ where: { userId }, order: { isPrimary: 'DESC', createdAt: 'ASC' } });
+    return cards.map((card) => this.stripSensitive(card));
+  }
+
+  async add({ userId, cardNumber, expiry }: AddCardDto): Promise<SafePaymentData> {
+    if (!passesLuhn(cardNumber)) throw rpcError(HttpStatus.BAD_REQUEST, 'Card number is not valid');
+    if (expiry && isExpired(expiry)) throw rpcError(HttpStatus.BAD_REQUEST, 'The card has expired');
+    const count = await this.paymentDataRepository.count({ where: { userId } });
+    if (count >= MAX_CARDS) throw rpcError(HttpStatus.BAD_REQUEST, `You can link up to ${MAX_CARDS} cards`);
+
+    const card = this.paymentDataRepository.create({
+      userId,
+      ...this.encryptCard(cardNumber),
+      expiry: expiry ?? null,
+      isPrimary: count === 0,
+    });
+    return this.stripSensitive(await this.paymentDataRepository.save(card));
+  }
+
+  async setPrimary({ userId, id }: CardRefDto) {
+    const card = await this.getOwned(userId, id);
+    await this.paymentDataRepository.update({ userId }, { isPrimary: false });
+    await this.paymentDataRepository.update(card.id, { isPrimary: true });
+    return this.list(userId);
+  }
+
+  async remove({ userId, id }: CardRefDto) {
+    const card = await this.getOwned(userId, id);
+    await this.paymentDataRepository.delete(card.id);
+    if (card.isPrimary) {
+      const next = await this.paymentDataRepository.findOne({ where: { userId }, order: { createdAt: 'DESC' } });
+      if (next) await this.paymentDataRepository.update(next.id, { isPrimary: true });
     }
+    return this.list(userId);
+  }
 
-    async update(data: CardDto) {
-        console.log(`Update`);
-        const existing = await this.paymentDataRepository.findOne({
-            where: { userId: data.userId },
-        });
-        console.log(`existing: ${existing}`);
-        if (!existing) {
-            throw new RpcException(
-                `Payment data for user ${data.userId} not found`,
-            );
-        }
+  async getCard({ userId, id }: CardRefDto): Promise<SafePaymentData> {
+    return this.stripSensitive(await this.getOwned(userId, id));
+  }
 
-        const { encrypted, iv, authTag } = this.crypto.encrypt(data.cardNumber);
-        console.log(`encrypted: ${encrypted}, iv: ${iv}, authTag: ${authTag}`);
-        existing.cardNumberEncrypted = encrypted;
-        existing.cardNumberIv = iv;
-        existing.cardNumberAuthTag = authTag;
-        existing.maskedCardNumber = this.mask(data.cardNumber);
+  create(data: CardDto): Promise<SafePaymentData> {
+    return this.add(data);
+  }
 
-        const saved = await this.paymentDataRepository.save(existing);
-        console.log("saved");
-        return this.stripSensitive(saved);
-    }
-    // async getPaymentData(userId: string): Promise<string> {
-    //     const existing = await this.paymentDataRepository.findOne({ where: { userId } });
-    //     if (!existing) {
-    //         throw new RpcException(`Payment data for user ${userId} not found`);
-    //     }
-    //     return this.crypto.decrypt(
-    //         existing.cardNumberEncrypted,
-    //         existing.cardNumberIv,
-    //         existing.cardNumberAuthTag,
-    //     );
+  async update(data: CardDto): Promise<SafePaymentData> {
+    const primary = await this.findPrimary(data.userId);
+    if (!primary) throw rpcError(HttpStatus.NOT_FOUND, 'Payment data not found');
+    Object.assign(primary, this.encryptCard(data.cardNumber));
+    return this.stripSensitive(await this.paymentDataRepository.save(primary));
+  }
 
-    // }
+  async getPaymentData(userId: string): Promise<SafePaymentData> {
+    const primary = await this.findPrimary(userId);
+    if (!primary) throw rpcError(HttpStatus.NOT_FOUND, 'Payment data not found');
+    return this.stripSensitive(primary);
+  }
 
-    async getPaymentData(userId: string) {
-        const existing = await this.paymentDataRepository.findOne({ where: { userId } });
-        if (!existing) {
-            throw new RpcException(`Payment data for user ${userId} not found`);
-        }
-        const { cardNumberEncrypted, cardNumberIv, cardNumberAuthTag, ...safe } = existing;
-        return safe; // id, userId, maskedCardNumber, createdAt, updatedAt
-    }
+  async getFullCardNumber(userId: string, cardId?: string): Promise<string> {
+    const card = cardId
+      ? await this.paymentDataRepository.findOne({ where: { id: cardId, userId } })
+      : await this.findPrimary(userId);
+    if (!card) throw rpcError(HttpStatus.NOT_FOUND, 'Payment data not found');
+    return this.crypto.decrypt(card.cardNumberEncrypted, card.cardNumberIv, card.cardNumberAuthTag);
+  }
 
-    private mask(cardNumber: string): string {
-        const last4 = cardNumber.slice(-4);
-        return `•••• •••• •••• ${last4}`;
-    }
+  private findPrimary(userId: string) {
+    return this.paymentDataRepository.findOne({ where: { userId }, order: { isPrimary: 'DESC', createdAt: 'ASC' } });
+  }
 
-    private stripSensitive(entity: PaymentData) {
-        const { cardNumberEncrypted, cardNumberIv, cardNumberAuthTag, ...rest } = entity;
-        return rest;
-    }
+  private async getOwned(userId: string, id: string) {
+    const card = await this.paymentDataRepository.findOne({ where: { id, userId } });
+    if (!card) throw rpcError(HttpStatus.NOT_FOUND, 'Card not found');
+    return card;
+  }
+
+  private encryptCard(cardNumber: string) {
+    const { encrypted, iv, authTag } = this.crypto.encrypt(cardNumber);
+    return {
+      cardNumberEncrypted: encrypted,
+      cardNumberIv: iv,
+      cardNumberAuthTag: authTag,
+      maskedCardNumber: `•••• •••• •••• ${cardNumber.slice(-4)}`,
+      brand: detectBrand(cardNumber),
+    };
+  }
+
+  private stripSensitive({
+    cardNumberEncrypted: _encrypted,
+    cardNumberIv: _iv,
+    cardNumberAuthTag: _authTag,
+    ...rest
+  }: PaymentData): SafePaymentData {
+    return rest;
+  }
 }

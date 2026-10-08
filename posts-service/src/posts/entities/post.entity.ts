@@ -2,6 +2,7 @@ import {
     Column,
     CreateDateColumn,
     Entity,
+    Index,
     PrimaryGeneratedColumn,
     UpdateDateColumn
 } from 'typeorm';
@@ -18,6 +19,10 @@ export class Post {
     @Column()
     title!: string;
 
+    @Index({ unique: true })
+    @Column({ type: 'varchar', length: 120, nullable: true })
+    slug!: string;
+
     @Column()
     teaser!: string;
 
@@ -32,6 +37,9 @@ export class Post {
 
     @Column()
     tag!: string;
+
+    @Column({ type: 'int', default: 0 })
+    views!: number;
 
     @CreateDateColumn()
     createdAt!: Date;

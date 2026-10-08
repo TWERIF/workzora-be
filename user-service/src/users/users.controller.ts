@@ -1,77 +1,192 @@
-import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
-import { ConfirmEmailDto, CreateUserDto, FindByEmailDto } from './dto';
+import { Controller, HttpStatus, Logger } from '@nestjs/common';
+import { EventPattern, MessagePattern, Payload, RpcException } from '@nestjs/microservices';
+import {
+  ConfirmEmailDto,
+  CreateUserDto,
+  CredentialsDto,
+  FindByEmailDto,
+  GoogleProfileDto,
+  IdDto,
+  IdsDto,
+  PasswordResetCodeDto,
+  PasswordResetDto,
+  PasswordResetRequestDto,
+  ProfilesPreviewDto,
+  RegisterUserDto,
+  SwitchRoleDto,
+  FreelancersQueryDto,
+  SpecializationCountsDto,
+  TopClientsQueryDto,
+  UpdateUserDto,
+  UploadAvatarDto,
+} from './dto';
 import { EmailService } from './email.service';
-import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
+
+const PASSWORD_RULE = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 @Controller()
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
+
   constructor(
     private readonly userService: UsersService,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
+
+  @MessagePattern('users.getPublic')
+  getPublic(@Payload() data: IdDto) {
+    return this.userService.getPublic(data.id);
+  }
 
   @MessagePattern('users.get')
-  async get(@Payload() data: { id: string }) {
+  get(@Payload() data: IdDto) {
     return this.userService.get(data.id);
   }
 
   @MessagePattern('users.count')
-  async count() {
+  count() {
     return this.userService.count();
   }
 
   @MessagePattern('users.getMany')
-  async getMany(@Payload() ids: string[]) {
-    return this.userService.getMany(ids);
+  getMany(@Payload() ids: string[]) {
+    return this.userService.getMany(Array.isArray(ids) ? ids : []);
   }
 
   @MessagePattern('users.getUsersByIds')
-  async getUsersByIds(@Payload() data: { ids: string[] }) {
+  getUsersByIds(@Payload() data: IdsDto) {
     return this.userService.getUsersByIds(data.ids);
   }
 
   @MessagePattern('users.create')
-  async createUser(data: CreateUserDto) {
+  createUser(@Payload() data: CreateUserDto) {
     return this.userService.createUser(data);
   }
 
+  @MessagePattern('users.findOrCreate')
+  findOrCreate(@Payload() data: GoogleProfileDto) {
+    return this.userService.findOrCreate(data);
+  }
+
   @MessagePattern('users.update')
-  async updateUser(data: Partial<User>) {
+  updateUser(@Payload() data: UpdateUserDto) {
     return this.userService.updateUser(data);
   }
 
   @MessagePattern('users.confirmEmail')
-  async confirmEmail(data: FindByEmailDto) {
+  confirmEmail(@Payload() data: PasswordResetRequestDto) {
     return this.emailService.confirmEmail(data);
   }
 
   @MessagePattern('users.verifyCode')
-  async verifyCode(data: ConfirmEmailDto) {
+  verifyCode(@Payload() data: ConfirmEmailDto) {
     return this.emailService.verifyCode(data);
   }
 
+  @MessagePattern('users.requestPasswordReset')
+  async requestPasswordReset(@Payload() data: PasswordResetRequestDto) {
+    const user = await this.userService.findByEmail({ email: data.email.trim() });
+    if (user) {
+      await this.emailService
+        .sendPasswordResetCode(user.email, data.locale)
+        .catch((error: unknown) => this.logger.warn(`Password reset email failed: ${String(error)}`));
+    }
+    return { success: true };
+  }
+
+  @MessagePattern('users.resetPassword')
+  async resetPassword(@Payload() data: PasswordResetDto) {
+    if (!PASSWORD_RULE.test(data.password)) {
+      throw new RpcException({
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: 'Password must be at least 8 characters with an uppercase letter, a digit and a special character',
+      });
+    }
+    const email = data.email.trim();
+    if (!(await this.emailService.consumePasswordResetCode(email, data.code))) {
+      throw new RpcException({ statusCode: HttpStatus.BAD_REQUEST, message: 'Invalid or expired code' });
+    }
+    await this.userService.setPassword(email, data.password);
+    return { success: true };
+  }
+
+  @MessagePattern('users.checkPasswordResetCode')
+  async checkPasswordResetCode(@Payload() data: PasswordResetCodeDto) {
+    return { valid: await this.emailService.checkPasswordResetCode(data.email.trim(), data.code) };
+  }
+
+  @MessagePattern('users.switchRole')
+  switchRole(@Payload() data: SwitchRoleDto) {
+    return this.userService.switchRole(data);
+  }
+
+  @MessagePattern('users.validateCredentials')
+  validateCredentials(@Payload() data: CredentialsDto) {
+    return this.userService.validateCredentials(data);
+  }
+
+  @MessagePattern('users.register')
+  async register(@Payload() data: RegisterUserDto) {
+    const isActive = await this.emailService.isEmailVerified(data.email);
+    return this.userService.createUser({
+      email: data.email,
+      password: data.password,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      username: data.username,
+      ...(data.role ? { role: data.role } : {}),
+      isActive,
+    });
+  }
+
   @MessagePattern('users.findByEmail')
-  async findByEmail(data: FindByEmailDto) {
+  findByEmail(@Payload() data: FindByEmailDto) {
     return this.userService.findByEmail(data);
   }
 
   @MessagePattern('users.findTopClients')
-  async findTopClients() {
+  findTopClients() {
     return this.userService.findTopClients();
   }
 
+  @MessagePattern('users.findTopClientsPaged')
+  findTopClientsPaged(@Payload() data: TopClientsQueryDto) {
+    return this.userService.findTopClientsPaged(data);
+  }
+
+  @MessagePattern('users.findFreelancers')
+  findFreelancers(@Payload() data: FreelancersQueryDto) {
+    return this.userService.findFreelancers(data);
+  }
+
+  @MessagePattern('users.specializationCounts')
+  specializationCounts(@Payload() data: SpecializationCountsDto) {
+    return this.userService.specializationCounts(data.groups);
+  }
+
   @MessagePattern('users.findTopFreelancers')
-  async findTopFreelancers() {
+  findTopFreelancers() {
     return this.userService.findTopFreelancers();
   }
+
   @MessagePattern('users.uploadAvatar')
-  async uploadAvatar(data) {
+  uploadAvatar(@Payload() data: UploadAvatarDto) {
     return this.userService.uploadImage(data);
   }
+
+  @EventPattern('users.touch')
+  async touch(@Payload() data: IdDto) {
+    await this.userService.touch(data.id);
+  }
+
+  @MessagePattern('users.removeAvatar')
+  removeAvatar(@Payload() data: IdDto) {
+    return this.userService.removeAvatar(data.id);
+  }
+
   @MessagePattern('users.getProfilesPreview')
-  async getProfilesPreview(@Payload() data: { role: string; amount: number }) {
+  getProfilesPreview(@Payload() data: ProfilesPreviewDto) {
     return this.userService.getProfilesPreview(data);
   }
 }

@@ -1,3 +1,4 @@
+import { NotifierModule } from './common/notifier';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -8,14 +9,15 @@ import { PaymentDataModule } from './payment-data/payment-data.module';
 
 @Module({
   imports: [
+    NotifierModule,
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         type: 'postgres',
         host: process.env.POSTGRES_HOST || 'postgres',
         port: Number(process.env.POSTGRES_PORT) || 5432,
-        username: process.env.POSTGRES_USER || 'workzorauser',
-        password: process.env.POSTGRES_PASSWORD || 'J95jACtFtadE',
-        database: process.env.POSTGRES_DB || 'workzoradb',
+        username: process.env.POSTGRES_USER,
+        password: process.env.POSTGRES_PASSWORD,
+        database: process.env.POSTGRES_DB,
         autoLoadEntities: true,
         synchronize: true,
       }),

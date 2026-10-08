@@ -3,6 +3,7 @@ import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { firstValueFrom } from 'rxjs';
 import { Repository } from 'typeorm';
+import { IndexPostDto } from '../common/index-dto';
 import { SearchPost } from './entities/post.entity';
 
 @Injectable()
@@ -14,20 +15,21 @@ export class PostsSearchService {
         @Inject('POSTS_SERVICE_CLIENT') private readonly postsClient: ClientProxy
     ) { }
 
-    async indexProject(projectData: any) {
+    async indexProject(projectData: IndexPostDto) {
         const searchRecord = this.searchRepository.create({
             id: projectData.id,
             title: projectData.title,
-            teaser: projectData.description,
+            teaser: projectData.teaser,
             tag: projectData.tag
         });
         await this.searchRepository.save(searchRecord);
     }
 
-    async updateIndexedProject(projectData: any) {
-        await this.searchRepository.update(projectData.id, {
+    async updateIndexedProject(projectData: IndexPostDto) {
+        await this.searchRepository.save({
+            id: projectData.id,
             title: projectData.title,
-            teaser: projectData.description,
+            teaser: projectData.teaser,
             tag: projectData.tag
         });
     }

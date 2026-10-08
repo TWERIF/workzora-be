@@ -26,9 +26,7 @@ export class PaymentDataService {
         limit: number;
     }) {
         const skip = (page - 1) * limit;
-        console.log("Before Role checked")
         if (role !== "admin") return;
-        console.log("Role checked")
 
         const [projects, total] = await this.projectRepository.findAndCount({
             where: {
@@ -52,7 +50,6 @@ export class PaymentDataService {
     }
     async findOne(id: string) {
         try {
-            console.log("In");
             const project = await this.projectRepository.findOne({
                 where: { id }, select: {
                     id: true,
@@ -61,17 +58,13 @@ export class PaymentDataService {
                     title: true,
                 }
             });
-            console.log("project: ", project);
             const paymentData = await firstValueFrom(
                 this.paymentDataClient.send("paymentData.getByUserId", { userId: project?.freelancerId })
             );
-            console.log("paymentData: ", paymentData);
             const invoice = await firstValueFrom(
                 this.invoicesClient.send("invoices.getByProjectId", { id })
             )
-            console.log("invoice before: ", invoice);
             delete invoice.id;
-            console.log("invoice after: ", invoice);
             return {
                 ...project,
                 ...invoice,

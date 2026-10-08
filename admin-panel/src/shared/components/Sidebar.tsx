@@ -2,7 +2,11 @@ import { Button } from '@/components/ui/button';
 import { logout } from '@/pages/auth/model/api';
 import { useAuth } from '@/pages/auth/model/useAuth';
 import {
+  BarChart3,
+  BookOpen,
+  FolderKanban,
   HandIcon,
+  LifeBuoy,
   ListTree,
   Menu,
   MessageCircle,
@@ -20,11 +24,15 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
+  { title: 'Статистика', path: '/stats', icon: BarChart3 },
+  { title: 'Проєкти', path: '/projects', icon: FolderKanban },
+  { title: 'Підтримка', path: '/support', icon: LifeBuoy },
   { title: 'Категорії', path: '/categories', icon: ListTree },
   { title: 'Чати', path: '/chats', icon: MessageCircle },
   { title: 'KYC', path: '/kyc', icon: VerifiedIcon },
   { title: 'Новини', path: '/posts', icon: NewspaperIcon },
-  { title: "Оплата", path: '/payments', icon: HandIcon }
+  { title: 'База знань', path: '/help', icon: BookOpen },
+  { title: "Виплати", path: '/payments', icon: HandIcon }
 ];
 
 const Sidebar: React.FC = () => {
@@ -65,25 +73,25 @@ const Sidebar: React.FC = () => {
         className={`
           fixed top-0 left-0
           z-50
-          h-screen
-          w-64
+          flex h-dvh w-64 flex-col
           bg-white
           border-r border-gray-800
+          pt-10
           transition-transform duration-300 ease-in-out
 
           ${isOpen
-            ? "translate-x-0 py-10"
+            ? "translate-x-0"
             : "-translate-x-full"
           }
         `}
       >
         <div className="p-6 px-[30px] flex items-center gap-3">
           <h1 className="text-xl font-bold tracking-tight">
-            AdminPanel
+            Адмін-панель
           </h1>
         </div>
 
-        <nav className="mt-4 px-4 space-y-2">
+        <nav className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto px-4 pb-4">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
@@ -105,7 +113,7 @@ const Sidebar: React.FC = () => {
 
         <div
           className="
-            absolute bottom-0
+            shrink-0
             w-full
             p-6
             border-t border-gray-800

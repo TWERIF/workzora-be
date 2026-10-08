@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CreatePostDto } from './dto/create-post.dto';
-import { GetPostsDto } from './dto/get-posts.dto';
+import { GetPostsDto, PostIdDto } from './dto/get-posts.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PostsService } from './posts.service';
 
@@ -50,10 +50,17 @@ export class PostsController {
     async getAll(
         @Payload() dto: GetPostsDto,
     ) {
-        return await this.postsService.getAll(
-            dto.page,
-            dto.limit,
-        );
+        return await this.postsService.getAll(dto);
+    }
+
+    @MessagePattern('posts.popular')
+    getPopular() {
+        return this.postsService.getPopular();
+    }
+
+    @MessagePattern('posts.view')
+    addView(@Payload() dto: PostIdDto) {
+        return this.postsService.addView(dto.id);
     }
 
 

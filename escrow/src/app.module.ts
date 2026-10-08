@@ -1,18 +1,21 @@
+import { NotifierModule } from './common/notifier';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { InvoicesModule } from './invoices/invoices.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
+    NotifierModule,
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         type: 'postgres',
         host: process.env.POSTGRES_HOST || 'postgres',
         port: Number(process.env.POSTGRES_PORT) || 5432,
-        username: process.env.POSTGRES_USER || 'workzorauser',
-        password: process.env.POSTGRES_PASSWORD || 'J95jACtFtadE',
-        database: process.env.POSTGRES_DB || 'workzoradb',
+        username: process.env.POSTGRES_USER,
+        password: process.env.POSTGRES_PASSWORD,
+        database: process.env.POSTGRES_DB,
         autoLoadEntities: true,
         synchronize: true,
       }),
@@ -26,7 +29,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 
         await initDataSource.initialize();
 
-        const schemas = ['invoice'];
+        const schemas = ['invoice', 'wallet'];
         for (const schema of schemas) {
           await initDataSource.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
         }
@@ -39,6 +42,7 @@ import { InvoicesModule } from './invoices/invoices.module';
     }),
 
     InvoicesModule,
+    WalletModule,
   ],
   controllers: [],
   providers: [],

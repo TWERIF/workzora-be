@@ -3,6 +3,7 @@ import type { Category } from "../../category/model/types";
 export interface CategoryFormValues {
   name: string;
   description?: string;
+  parentId: string;
 }
 
 export interface CreateCategoryModalProps {
@@ -14,4 +15,5 @@ export interface CreateCategoryModalProps {
 export interface CreateCategoriesDto {
   title: string;
   description: string;
+  parentId?: string | null;
 }

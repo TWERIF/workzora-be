@@ -1,95 +1,65 @@
-import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Inject,
-    Param,
-    Patch,
-    Post,
-    Query,
-    UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
-
-import { AuthGuard } from '../auth/guards/auth-guard';
+import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles, RolesGuard } from '../auth/guards/role-guard';
 import { Public } from '../auth/public.decorator';
-import type {
-    CreateCategoriesDto,
-    UpdateCategoriesDto,
-} from './dto';
+import { PaginationQueryDto } from '../common/pagination.dto';
+import { sendRpc } from '../common/rpc';
+import { CreateCategoryDto, SearchCategoriesQueryDto, UpdateCategoryDto } from './dto';
 
+@ApiTags('categories')
 @Controller('categories')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles('admin')
 export class CategoriesController {
-    constructor(
-        @Inject('PROJECT_SERVICE')
-        private readonly projectClient: ClientProxy,
-    ) { }
+  constructor(@Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy) {}
 
-    @Get()
-    @Public()
-    async findAll(
-        @Query('page') page = 1,
-        @Query('limit') limit = 10,
-    ) {
-        return await firstValueFrom(
-            this.projectClient.send('categories.findAll', {
-                page: Number(page),
-                limit: Number(limit),
-            }),
-        );
-    }
-    @Get('search')
-    @Public()
-    async search(
-        @Query('search') search: string,
-        @Query('page') page = 1,
-        @Query('limit') limit = 10,
-    ) {
-        return await firstValueFrom(
-            this.projectClient.send('categories.search', {
-                search,
-                page: Number(page),
-                limit: Number(limit),
-            }),
-        );
-    }
-    @Get(':id')
-    @Public()
-    async findOne(@Param('id') id: string) {
-        return await firstValueFrom(
-            this.projectClient.send('categories.findOne', { id }),
-        );
-    }
+  @Public()
+  @Get()
+  @ApiOperation({ summary: 'Categories with project counts' })
+  findAll(@Query() query: PaginationQueryDto) {
+    return sendRpc(this.projectClient, 'categories.findAll', query);
+  }
 
-    @Post()
-    async create(@Body() dto: CreateCategoriesDto) {
-        return await firstValueFrom(
-            this.projectClient.send('categories.create', dto),
-        );
-    }
+  @Public()
+  @Get('tree')
+  @ApiOperation({ summary: 'Categories with their specializations and open project counts' })
+  tree() {
+    return sendRpc(this.projectClient, 'categories.tree', {});
+  }
 
-    @Patch(':id')
-    async update(
-        @Param('id') id: string,
-        @Body() dto: UpdateCategoriesDto,
-    ) {
-        return await firstValueFrom(
-            this.projectClient.send('categories.update', {
-                id,
-                ...dto,
-            }),
-        );
-    }
+  @Public()
+  @Get('search')
+  @ApiOperation({ summary: 'Search categories by title' })
+  search(@Query() query: SearchCategoriesQueryDto) {
+    return sendRpc(this.projectClient, 'categories.search', { ...query, search: query.search ?? '' });
+  }
 
-    @Delete(':id')
-    async delete(@Param('id') id: string) {
-        return await firstValueFrom(
-            this.projectClient.send('categories.delete', { id }),
-        );
-    }
+  @Public()
+  @Get(':id')
+  @ApiOperation({ summary: 'Category by id' })
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return sendRpc(this.projectClient, 'categories.findOne', { id });
+  }
+
+  @Post()
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Create a category (admin)' })
+  create(@Body() dto: CreateCategoryDto) {
+    return sendRpc(this.projectClient, 'categories.create', dto);
+  }
+
+  @Patch(':id')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Edit a category (admin)' })
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCategoryDto) {
+    return sendRpc(this.projectClient, 'categories.update', { ...dto, id });
+  }
+
+  @Delete(':id')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Delete a category (admin)' })
+  delete(@Param('id', ParseUUIDPipe) id: string) {
+    return sendRpc(this.projectClient, 'categories.delete', { id });
+  }
 }

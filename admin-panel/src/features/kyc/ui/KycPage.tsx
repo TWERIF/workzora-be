@@ -10,6 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { VerificationStatus } from "../model/types";
 import { useKyc } from "../model/useKyc";
 
+const KYC_STATUS_LABELS: Record<string, string> = {
+    not_verified: "Не верифіковано",
+    in_progress: "На перевірці",
+    verified: "Верифіковано",
+};
+
 interface KycPageProps {
     verificationId?: string;
 }
@@ -66,7 +72,7 @@ export default function KycPage({
                         </CardTitle>
 
                         <Badge>
-                            {verification.status}
+                            {KYC_STATUS_LABELS[verification.status] ?? verification.status}
                         </Badge>
                     </div>
                 </CardHeader>

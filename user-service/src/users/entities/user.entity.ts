@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BeforeInsert, Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { Availability, PreferredBudgetType, PreferredProjectSize, UserRole, WorkType } from '../../types';
 
 @Entity({ name: 'users', schema: 'users' })
@@ -32,6 +32,9 @@ export class User {
 
   @Column('simple-array', { default: '' })
   skills!: string[];
+
+  @Column('uuid', { array: true, default: () => "'{}'" })
+  specializations!: string[];
 
   @Column({ type: 'float', default: 0 })
   ratings!: number;
@@ -73,6 +76,21 @@ export class User {
   })
   availability!: Availability;
 
+  @Column({ type: 'varchar', length: 20, default: 'STANDARD' })
+  rateType!: string;
+
+  @Column({ type: 'varchar', length: 200, default: '' })
+  rateNote!: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  projectType!: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  budgetRange!: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  workFormat!: string | null;
+
   @Column({nullable: true})
   phone!: string;
 
@@ -82,6 +100,26 @@ export class User {
   @Column({nullable: true})
   country!: string;
 
-  @Column({ nullable: true })
-  avatarUrl!: string;
+  @Column({ type: 'varchar', nullable: true })
+  avatarUrl!: string | null;
+
+  @Column({ type: 'text', default: '' })
+  bio!: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  createdAt!: Date | null;
+
+  @Column({ default: false })
+  roleSelected!: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  roleSwitchedAt!: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastSeenAt!: Date | null;
+
+  @BeforeInsert()
+  setCreatedAt() {
+    this.createdAt = new Date();
+  }
 }

@@ -1,57 +1,44 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import type { CreatePortfolio, UpdatePortfolio } from './dto';
+import { CreatePortfolioDto, DeletePortfolioDto, PaginationDto, PortfolioIdDto, UpdatePortfolioDto, UserIdDto, UserIdsDto } from './dto';
 import { PortfolioService } from './portfolio.service';
 
 @Controller()
 export class PortfolioController {
-    constructor(
-        private readonly portfolioService: PortfolioService,
-    ) { }
+  constructor(private readonly portfolioService: PortfolioService) {}
 
-    @MessagePattern('portfolio.create')
-    create(
-        @Payload() dto: CreatePortfolio,
-    ) {
-        return this.portfolioService.create(dto);
-    }
+  @MessagePattern('portfolio.create')
+  create(@Payload() dto: CreatePortfolioDto) {
+    return this.portfolioService.create(dto);
+  }
 
-    @MessagePattern('portfolio.update')
-    update(
-        @Payload() dto: UpdatePortfolio,
-    ) {
-        return this.portfolioService.update(dto);
-    }
+  @MessagePattern('portfolio.update')
+  update(@Payload() dto: UpdatePortfolioDto) {
+    return this.portfolioService.update(dto);
+  }
 
-    @MessagePattern('portfolio.delete')
-    delete(
-        @Payload() id: string,
-    ) {
-        return this.portfolioService.delete(id);
-    }
+  @MessagePattern('portfolio.delete')
+  delete(@Payload() dto: DeletePortfolioDto) {
+    return this.portfolioService.delete(dto);
+  }
 
-    @MessagePattern('portfolio.findAll')
-    findAll(
-        @Payload()
-        payload: {
-            page: number;
-            limit: number;
-        },
-    ) {
-        return this.portfolioService.findAll(payload);
-    }
+  @MessagePattern('portfolio.addView')
+  addView(@Payload() dto: PortfolioIdDto) {
+    return this.portfolioService.addView(dto);
+  }
 
-    @MessagePattern('portfolio.findByUserId')
-    findByUserId(
-        @Payload() userId: string,
-    ) {
-        return this.portfolioService.findByUserId(userId);
-    }
+  @MessagePattern('portfolio.findAll')
+  findAll(@Payload() payload: PaginationDto) {
+    return this.portfolioService.findAll(payload);
+  }
 
-    @MessagePattern('portfolio.findByUserIds')
-    findByUserIds(
-        @Payload() userIds: string[],
-    ) {
-        return this.portfolioService.findByUserIds(userIds);
-    }
+  @MessagePattern('portfolio.findByUserId')
+  findByUserId(@Payload() payload: UserIdDto) {
+    return this.portfolioService.findByUserId(payload.userId);
+  }
+
+  @MessagePattern('portfolio.findByUserIds')
+  findByUserIds(@Payload() payload: UserIdsDto) {
+    return this.portfolioService.findByUserIds(payload.userIds);
+  }
 }

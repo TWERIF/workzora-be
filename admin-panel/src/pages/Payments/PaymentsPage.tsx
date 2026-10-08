@@ -1,85 +1,77 @@
 import { Button } from "@/components/ui/button";
-import { usePaymentDataList } from "@/features/payment-data/model/usePaymentInfo";
-import { PaymentCardList } from "@/features/payment-data/ui/PaymentCardList";
-import { PaymentModal } from "@/features/payment-data/ui/PaymentModal";
-import { getPaginationRange } from "@/shared/utils/format";
-import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { WithdrawalStatus } from "@/features/withdrawals/model/types";
+import { useWithdrawalList } from "@/features/withdrawals/model/useWithdrawals";
+import { STATUS_LABELS, WithdrawalCard } from "@/features/withdrawals/ui/WithdrawalCard";
+import { WithdrawalModal } from "@/features/withdrawals/ui/WithdrawalModal";
+import Pagination from "@/shared/components/Pagination";
+import { Wallet } from "lucide-react";
 import { useState } from "react";
 
-const LIMIT = 10;
+const LIMIT = 12;
+const STATUSES: WithdrawalStatus[] = ["processing", "completed", "rejected"];
 
 export default function PaymentsPage() {
     const [page, setPage] = useState(1);
+    const [status, setStatus] = useState<WithdrawalStatus>("processing");
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
-    const { data, isLoading, isFetching } = usePaymentDataList({ page, limit: LIMIT });
+    const { data, isLoading, isFetching } = useWithdrawalList({ status, page, limit: LIMIT });
 
-    const projects = data?.data ?? [];
+    const withdrawals = data?.data ?? [];
     const totalPages = Number(data?.totalPages ?? 1);
 
     return (
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 mt-10">
             <div className="mb-6">
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground">Платежі</h1>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">Виплати</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Керуйте оплатами за завершені проєкти
+                    Заявки фрилансерів на виведення коштів з балансу на картку
                 </p>
             </div>
 
-            <PaymentCardList projects={projects} isLoading={isLoading} onSelect={setSelectedId} />
-
-            {totalPages > 1 && (
-                <nav
-                    aria-label="Пагінація"
-                    className="mt-8 flex flex-wrap items-center justify-center gap-1"
-                >
+            <div className="mb-6 flex flex-wrap gap-2">
+                {STATUSES.map((item) => (
                     <Button
-                        variant="outline"
-                        size="icon"
-                        aria-label="Попередня сторінка"
-                        disabled={page <= 1 || isFetching}
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        key={item}
+                        variant={item === status ? "default" : "outline"}
+                        onClick={() => {
+                            setStatus(item);
+                            setPage(1);
+                        }}
                     >
-                        <ChevronLeft className="size-4" />
+                        {STATUS_LABELS[item]}
                     </Button>
+                ))}
+            </div>
 
-                    {getPaginationRange(page, totalPages).map((item, i) =>
-                        item === "ellipsis" ? (
-                            <span
-                                key={`ellipsis-${i}`}
-                                className="flex size-9 items-center justify-center text-muted-foreground"
-                            >
-                                <MoreHorizontal className="size-4" />
-                            </span>
-                        ) : (
-                            <Button
-                                key={item}
-                                variant={item === page ? "default" : "outline"}
-                                size="icon"
-                                disabled={isFetching}
-                                aria-current={item === page ? "page" : undefined}
-                                onClick={() => setPage(item)}
-                                className="tabular-nums"
-                            >
-                                {item}
-                            </Button>
-                        ),
-                    )}
-
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        aria-label="Наступна сторінка"
-                        disabled={page >= totalPages || isFetching}
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    >
-                        <ChevronRight className="size-4" />
-                    </Button>
-                </nav>
+            {isLoading ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <Skeleton key={i} className="h-[120px] rounded-xl" />
+                    ))}
+                </div>
+            ) : withdrawals.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">
+                    <Wallet className="size-6 text-muted-foreground" />
+                    <p className="text-sm font-medium text-foreground">Заявок не знайдено</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {withdrawals.map((withdrawal) => (
+                        <WithdrawalCard
+                            key={withdrawal.id}
+                            withdrawal={withdrawal}
+                            onClick={() => setSelectedId(withdrawal.id)}
+                        />
+                    ))}
+                </div>
             )}
 
-            <PaymentModal
-                projectId={selectedId}
+            <Pagination page={page} totalPages={totalPages} disabled={isFetching} onChange={setPage} />
+
+            <WithdrawalModal
+                withdrawalId={selectedId}
                 open={Boolean(selectedId)}
                 onOpenChange={(open) => !open && setSelectedId(null)}
             />

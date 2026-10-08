@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { create, deleteOne, findAll, findOne, update } from './http';
+import { create, deleteOne, findAll, findOne, getTree, update } from './http';
 import type { CreateCategoriesDto } from './types';
 
 export const CATEGORY_KEYS = {
     all: ['categories'] as const,
     lists: () => [...CATEGORY_KEYS.all, 'list'] as const,
-    list: (params: { page: number; limit: number }) => [...CATEGORY_KEYS.lists(), params] as const,
+    list: (params: { page: number; limit: number; search?: string }) => [...CATEGORY_KEYS.lists(), params] as const,
     details: () => [...CATEGORY_KEYS.all, 'detail'] as const,
     detail: (id: string) => [...CATEGORY_KEYS.details(), id] as const,
 };
 
 export const useCategoriesList = (
-    params: { page: number; limit: number } = {
+    params: { page: number; limit: number; search?: string } = {
         page: 1,
         limit: 20,
     }
@@ -66,3 +66,4 @@ export const useDeleteCategory = () => {
         },
     });
 };
+export const useCategoryTree = () => useQuery({ queryKey: [...CATEGORY_KEYS.all, 'tree'], queryFn: getTree });

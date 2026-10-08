@@ -20,13 +20,15 @@ import { Input } from "@/components/ui/input";
 import { useEffect } from "react";
 import { categorySchema } from "../model/schema";
 import type { CategoryFormValues, CreateCategoryModalProps } from "../model/types";
-import { useCreateCategory, useUpdateCategory } from "../model/useData";
+import { useCategoryTree, useCreateCategory, useUpdateCategory } from "../model/useData";
 
 
 
 export default function CreateCategoryModal({ open, onOpenChange, category }: CreateCategoryModalProps) {
     const { mutateAsync: createCategory } = useCreateCategory();
     const { mutateAsync: updateCategory } = useUpdateCategory();
+    const { data: tree = [] } = useCategoryTree();
+    const parents = tree.filter((node) => node.id !== category?.id);
 
     const isEdit = !!category;
 
@@ -34,6 +36,7 @@ export default function CreateCategoryModal({ open, onOpenChange, category }: Cr
         if (category) {
             form.setFieldValue("name", category.title);
             form.setFieldValue("description", category.description ?? "");
+            form.setFieldValue("parentId", category.parentId ?? "");
         } else {
             form.reset();
         }
@@ -43,6 +46,7 @@ export default function CreateCategoryModal({ open, onOpenChange, category }: Cr
         defaultValues: {
             name: "",
             description: "",
+            parentId: "",
         } as CategoryFormValues,
 
         onSubmit: async ({ value }) => {
@@ -53,6 +57,7 @@ export default function CreateCategoryModal({ open, onOpenChange, category }: Cr
                         body: {
                             title: value.name,
                             description: value.description ?? "",
+                            parentId: value.parentId || null,
                         },
                     });
 
@@ -61,6 +66,7 @@ export default function CreateCategoryModal({ open, onOpenChange, category }: Cr
                     await createCategory({
                         title: value.name,
                         description: value.description ?? "",
+                        ...(value.parentId ? { parentId: value.parentId } : {}),
                     });
 
                     toast.success("Категорію створено успішно!");
@@ -146,6 +152,28 @@ export default function CreateCategoryModal({ open, onOpenChange, category }: Cr
                                                 onBlur={field.handleBlur}
                                                 onChange={(e) => field.handleChange(e.target.value)}
                                             />
+                                        </Field>
+                                    </FieldGroup>
+                                )}
+                            </form.Field>
+                            <form.Field name="parentId">
+                                {(field) => (
+                                    <FieldGroup>
+                                        <FieldLabel htmlFor={field.name}>Батьківська категорія (для спеціалізації)</FieldLabel>
+                                        <Field>
+                                            <select
+                                                id={field.name}
+                                                value={field.state.value}
+                                                onChange={(e) => field.handleChange(e.target.value)}
+                                                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                            >
+                                                <option value="">Немає, це основна категорія</option>
+                                                {parents.map((node) => (
+                                                    <option key={node.id} value={node.id}>
+                                                        {node.title}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </Field>
                                     </FieldGroup>
                                 )}

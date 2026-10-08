@@ -1,280 +1,201 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
-  HttpException,
-  HttpStatus,
   Inject,
+  NotFoundException,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
-import { AuthGuard } from '../auth/guards/auth-guard';
+import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles, RolesGuard } from '../auth/guards/role-guard';
 import { Public } from '../auth/public.decorator';
-import type { AwaitingPaymentDto } from './dto';
+import { CurrentUser, UserRole } from '../common/auth-user';
+import type { AuthUser } from '../common/auth-user';
+import { ProjectRecord } from '../common/project';
+import { sendRpc } from '../common/rpc';
+import {
+  AdminProjectsQueryDto,
+  AwaitingPaymentDto,
+  CreateProjectDto,
+  FeaturedDto,
+  FindProjectsQueryDto,
+  MyProjectsQueryDto,
+  SearchQueryDto,
+  UpdateProjectDto,
+} from './dto';
 
+interface ClientSummary {
+  id: string;
+  firstName: string;
+  lastName?: string;
+}
+
+@ApiTags('projects')
 @Controller('projects')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 export class ProjectsController {
   constructor(
     @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
     @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
     @Inject('SEARCH_SERVICE') private readonly searchClient: ClientProxy,
-  ) { }
+  ) {}
 
   @Get('search')
-  async searchProjects(@Query('searchTerm') searchTerm: string) {
-    if (!searchTerm || searchTerm.trim() === '') {
-      return [];
-    }
-
-    try {
-      return await firstValueFrom(
-        this.searchClient.send('projects.search', { searchTerm }),
-      );
-    } catch (error) {
-      console.error('Search Service Error:', error);
-      throw new HttpException(
-        'Search service is temporarily unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Full text search over projects' })
+  searchProjects(@Query() query: SearchQueryDto) {
+    if (!query.searchTerm?.trim()) return [];
+    return sendRpc(this.searchClient, 'projects.search', { searchTerm: query.searchTerm });
   }
 
   @Get('my')
-  async getMyProjects(
-    @Req() req,
-    @Query('status') status: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    const user = req.user;
-
-    try {
-      const result = await firstValueFrom(
-        this.projectClient.send('projects.findMyProjects', {
-          userId: user.id,
-          status,
-          page: Number(page),
-          limit: Number(limit),
-        }),
-      );
-
-      if (result && result.error === 'DB_ERROR') {
-        throw new HttpException(
-          'Database error occurred while fetching your projects',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-
-      return result;
-    } catch (error) {
-      if (error instanceof HttpException) throw error;
-
-      throw new HttpException(
-        'Failed to fetch your projects',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Own projects by status' })
+  getMyProjects(@CurrentUser() user: AuthUser, @Query() query: MyProjectsQueryDto) {
+    return sendRpc(this.projectClient, 'projects.findMyProjects', { ...query, userId: user.id });
   }
+
   @Public()
   @Get('count')
-  async count() {
-    return await firstValueFrom(
-      this.projectClient.send('projects.count', {}),
-    );
+  @ApiOperation({ summary: 'Number of projects' })
+  count() {
+    return sendRpc<number>(this.projectClient, 'projects.count', {});
   }
+
   @Public()
   @Get('topProjects')
+  @ApiOperation({ summary: 'Projects for the home page' })
   async getTopProjects() {
-    try {
-      const projects = await firstValueFrom(
-        this.projectClient.send('projects.getTopProjects', {}),
-      );
-
-      const projectsWithUsers = await Promise.all(
-        projects.map(async (p) => {
-          try {
-            const user = await firstValueFrom(
-              this.userClient.send('users.get', p.clientId),
-            );
-            return { ...p, clientName: user.firstName };
-          } catch (userError) {
-            return { ...p, clientName: 'Unknown' };
-          }
-        }),
-      );
-      return projectsWithUsers;
-    } catch (error) {
-      console.log(error);
-      throw new HttpException(
-        'Project service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
+    const projects = await sendRpc<ProjectRecord[]>(this.projectClient, 'projects.getTopProjects', {});
+    return this.withClientNames(projects);
   }
 
+  private async withClientNames<T extends { clientId: string }>(projects: T[]) {
+    const clientIds = [...new Set(projects.map((project) => project.clientId))];
+    const clients = await Promise.all(
+      clientIds.map((id) => sendRpc<ClientSummary>(this.userClient, 'users.getPublic', { id }).catch(() => null)),
+    );
+    const namesById = new Map(
+      clients.filter((client): client is ClientSummary => !!client).map((c) => [c.id, [c.firstName, c.lastName].filter(Boolean).join(' ')]),
+    );
+    return projects.map((project) => ({ ...project, clientName: namesById.get(project.clientId) ?? null }));
+  }
+
+  @Roles('admin')
+  @Get('admin')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'All projects with status filter (admin)' })
+  adminList(@Query() query: AdminProjectsQueryDto) {
+    return sendRpc(this.projectClient, 'projects.adminList', query);
+  }
 
   @Roles('client')
   @Post()
-  async createPtoject(@Req() req, @Body() body) {
-    const user = req.user;
-    const payload = { ...body, clientId: user.id };
-    try {
-      return await firstValueFrom(
-        this.projectClient.send('projects.create', payload),
-      );
-    } catch (e) {
-      throw new Error('Error occured while creating project');
-    }
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Post a project' })
+  create(@CurrentUser() user: AuthUser, @Body() body: CreateProjectDto) {
+    return sendRpc(this.projectClient, 'projects.create', { ...body, clientId: user.id });
   }
 
   @Roles('client')
   @Patch(':id')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Edit own project, the price only while it is open' })
   async updateProject(
-    @Param('id') id: string,
-    @Body() body,
-    @Req() req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateProjectDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    try {
-      return await firstValueFrom(
-        this.projectClient.send('projects.update', {
-          id,
-          ...body,
-        }),
-      );
-    } catch (e) {
-      throw new HttpException(
-        'Failed to update project',
-        HttpStatus.BAD_REQUEST,
-      );
+    const project = await this.getOwnedProject(id, user);
+    if (body.price !== undefined && Number(body.price) !== Number(project.price) && project.status !== 'open') {
+      throw new BadRequestException('The price cannot be changed after a freelancer was chosen');
     }
+    return sendRpc(this.projectClient, 'projects.update', { ...body, id });
   }
 
-  @Roles('client')
+  @Roles('client', 'admin')
   @Delete(':id')
-  async deleteProject(@Param('id') id: string) {
-    try {
-      return await firstValueFrom(
-        this.projectClient.send('projects.delete', {
-          id,
-        }),
-      );
-    } catch (e) {
-      throw new HttpException(
-        'Failed to delete project',
-        HttpStatus.BAD_REQUEST,
-      );
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Delete an unpaid project' })
+  async deleteProject(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    const project = await this.getOwnedProject(id, user);
+    if (!['open', 'awaiting_payment'].includes(project.status)) {
+      throw new BadRequestException('Only an unpaid project can be deleted');
     }
+    return sendRpc(this.projectClient, 'projects.delete', { id });
   }
 
   @Get(':id')
-  async getOne(@Param('id') id: string) {
-    const project = await firstValueFrom(
-      this.projectClient.send('projects.findOneProject', { id }),
-    );
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Project with its client' })
+  async getOne(@Param('id', ParseUUIDPipe) id: string) {
+    const project = await sendRpc<ProjectRecord | null>(this.projectClient, 'projects.findOneProject', { id });
+    if (!project) throw new NotFoundException('Project not found');
 
-    const client = await firstValueFrom(
-      this.userClient.send('users.get', { id: project.clientId })
-    )
-    delete project.clientId;
-    delete client.password;
-    delete client.reserveEmail;
-    return {
-      ...project,
-      client
-    }
+    const client = await sendRpc(this.userClient, 'users.getPublic', { id: project.clientId }).catch(() => null);
+    const { clientId: _clientId, ...rest } = project;
+    return { ...rest, client };
   }
 
   @Get()
   @Public()
-  async get(
-    @Req() req,
-    @Query('search') search?: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-    @Query('categories') categories?: string,
-    @Query('tags') tags?: string,
-    @Query('minPrice') minPrice?: string,
-    @Query('maxPrice') maxPrice?: string,
-  ) {
-    // const user = req.user;
-    // if (!user) return;
-
-    return await firstValueFrom(
-      this.projectClient.send('projects.findProjects', {
-        // id: user.id,
-        // role: user.role,
-        search,
-        page: Number(page),
-        limit: Number(limit),
-        categories: categories ? categories.split(',') : undefined,
-        tags: tags ? tags.split(',') : undefined,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      }),
-    );
+  @ApiOperation({ summary: 'Open projects with search and filters' })
+  async findProjects(@Query() query: FindProjectsQueryDto) {
+    const result = await sendRpc<{ data: ProjectRecord[] }>(this.projectClient, 'projects.findProjects', query);
+    return { ...result, data: await this.withClientNames(result.data) };
   }
 
   @Roles('client')
   @Patch(':id/awaiting-payment')
-  async toAwaitingPayment(
-    @Param('id') id: string,
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Choose the freelancer, the project waits for payment' })
+  toAwaitingPayment(
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: AwaitingPaymentDto,
-    @Req() req,
+    @CurrentUser() user: AuthUser,
   ) {
-
-    return await firstValueFrom(
-      this.projectClient.send('projects.toAwaitingPayment', {
-        id,
-        freelancerId: body.freelancerId,
-      }),
-    );
-
+    return sendRpc(this.projectClient, 'projects.toAwaitingPayment', { id, freelancerId: body.freelancerId, clientId: user.id });
   }
 
   @Roles('client')
   @Patch(':id/completed')
-  async toInCompleted(
-    @Param('id') id: string,
-  ) {
-    try {
-      return await firstValueFrom(
-        this.projectClient.send('projects.toInCompleted', {
-          id
-        }),
-      );
-    } catch (e) {
-      throw new HttpException(
-        'Failed to process awaiting payment status',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Complete the project and release the escrow to the freelancer' })
+  toCompleted(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.projectClient, 'projects.toInCompleted', { id, clientId: user.id });
+  }
+
+  @Roles('admin')
+  @Patch(':id/featured')
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Feature a project in the top list (admin)' })
+  setFeatured(@Param('id', ParseUUIDPipe) id: string, @Body() body: FeaturedDto) {
+    return sendRpc(this.projectClient, 'projects.setFeatured', { id, isFeatured: body.isFeatured });
   }
 
   @Roles('admin')
   @Patch(':id/closed')
-  async toClosed(
-    @Param('id') id: string,
-  ) {
-    try {
-      return await firstValueFrom(
-        this.projectClient.send('projects.toClosed', {
-          id
-        }),
-      );
-    } catch (e) {
-      throw new HttpException(
-        'Failed to process awaiting payment status',
-        HttpStatus.BAD_REQUEST,
-      );
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Close a project (admin)' })
+  toClosed(@Param('id', ParseUUIDPipe) id: string) {
+    return sendRpc(this.projectClient, 'projects.toClosed', { id });
+  }
+
+  private async getOwnedProject(id: string, user: AuthUser) {
+    const project = await sendRpc<ProjectRecord | null>(this.projectClient, 'projects.findOneProject', { id });
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.clientId !== user.id && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only the project owner can change it');
     }
+    return project;
   }
 }

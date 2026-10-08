@@ -1,3 +1,4 @@
+import type { CategoryTreeNode } from "../../category/model/types";
 import { api } from "@/shared/http";
 import type { CreateCategoriesDto } from "./types";
 
@@ -9,12 +10,10 @@ export const update = async (body: Partial<CreateCategoriesDto>, id: string) => 
     return (await api.patch(`/categories/${id}`, body)).data;
 }
 
-export const findAll = async ({ page = 1, limit = 20 }: { page: number, limit: number }) => {
-    return (await api.get("/categories", {
-        params: {
-            page,
-            limit
-        }
+export const findAll = async ({ page = 1, limit = 20, search = "" }: { page: number, limit: number, search?: string }) => {
+    const term = search.trim();
+    return (await api.get(term ? "/categories/search" : "/categories", {
+        params: term ? { page, limit, search: term } : { page, limit }
     })).data;
 }
 
@@ -25,3 +24,4 @@ export const findOne = async (id: string) => {
 export const deleteOne = async (id: string) => {
     return (await api.delete(`/categories/${id}`)).data;
 }
+export const getTree = async (): Promise<CategoryTreeNode[]> => (await api.get<CategoryTreeNode[]>("/categories/tree")).data;

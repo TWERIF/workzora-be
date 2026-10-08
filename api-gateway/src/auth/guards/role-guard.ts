@@ -1,31 +1,22 @@
-import {
-    CanActivate,
-    ExecutionContext,
-    Injectable,
-    SetMetadata,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { RequestWithUser } from '../../common/auth-user';
+import { IS_PUBLIC_KEY } from '../public.decorator';
 
 export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.get<string[]>(
-      'roles',
-      context.getHandler(),
-    );
-    if (!requiredRoles || requiredRoles.length === 0) {
-      return true;
-    }
+    const targets = [context.getHandler(), context.getClass()];
+    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets)) return true;
 
-    const req = context.switchToHttp().getRequest();
-    const user = req.user;
+    const requiredRoles = this.reflector.getAllAndOverride<string[] | undefined>('roles', targets);
+    if (!requiredRoles?.length) return true;
 
-    if (!user || !user.role) return false;
-
-    return requiredRoles.includes(user.role);
+    const { user } = context.switchToHttp().getRequest<RequestWithUser>();
+    return !!user?.role && requiredRoles.includes(user.role);
   }
 }

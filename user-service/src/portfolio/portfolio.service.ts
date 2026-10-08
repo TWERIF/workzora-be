@@ -1,123 +1,94 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { firstValueFrom } from 'rxjs';
 import { In, Repository } from 'typeorm';
-import { CreatePortfolio, UpdatePortfolio } from './dto';
+import { CreatePortfolioDto, DeletePortfolioDto, PaginationDto, PortfolioIdDto, UpdatePortfolioDto } from './dto';
 import { Portfolio } from './entities/portfolio.entity';
+
+export interface PortfolioAuthor {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
+const rpcError = (statusCode: HttpStatus, message: string) => new RpcException({ statusCode, message });
 
 @Injectable()
 export class PortfolioService {
-    constructor(
-        @InjectRepository(Portfolio)
-        private readonly portfolioRepository: Repository<Portfolio>,
+  constructor(
+    @InjectRepository(Portfolio)
+    private readonly portfolioRepository: Repository<Portfolio>,
+    @Inject('USER_SERVICE')
+    private readonly userClient: ClientProxy,
+  ) {}
 
-        @Inject('USER_SERVICE')
-        private readonly userClient: ClientProxy,
-    ) { }
+  async create(dto: CreatePortfolioDto) {
+    const existing = await this.portfolioRepository.findOne({ where: { title: dto.title, userId: dto.userId } });
+    if (existing) throw rpcError(HttpStatus.CONFLICT, 'A portfolio item with this title already exists');
 
-    async create(dto: CreatePortfolio) {
-        try {
-            const existing = await this.portfolioRepository.findOne({ where: { title: dto.title, userId: dto.userId } })
-            if (existing) throw new BadRequestException();
+    return this.portfolioRepository.save(this.portfolioRepository.create(dto));
+  }
 
-            const portfolio = this.portfolioRepository.create(dto);
-            return await this.portfolioRepository.save(portfolio);
-        } catch (error) {
-            throw error;
-        }
-    }
-    async update(dto: UpdatePortfolio) {
-        try {
-            const existing = await this.portfolioRepository.findOne({ where: { id: dto.id } });
-            if (!existing) throw new BadRequestException();
+  async update({ id, userId, ...changes }: UpdatePortfolioDto) {
+    const existing = await this.getOwned(id, userId);
+    Object.assign(existing, Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined)));
+    return this.portfolioRepository.save(existing);
+  }
 
-            await this.portfolioRepository.update(dto.id, dto);
+  async delete({ id, userId }: DeletePortfolioDto) {
+    const existing = await this.getOwned(id, userId);
+    await this.portfolioRepository.remove(existing);
+    return { success: true };
+  }
 
-            return await this.portfolioRepository.findOne({
-                where: {
-                    id: dto.id
-                }
-            });
-        } catch (error) {
-            throw error;
-        }
-    }
-    async delete(id: string) {
-        try {
-            const existing = await this.portfolioRepository.findOne({
-                where: {
-                    id
-                }
-            });
+  async addView({ id }: PortfolioIdDto) {
+    await this.portfolioRepository.increment({ id }, 'views', 1);
+    return { success: true };
+  }
 
-            if (!existing)
-                throw new NotFoundException();
+  findByUserId(userId: string) {
+    return this.portfolioRepository.find({ where: { userId }, order: { createdAt: 'DESC' } });
+  }
 
-            await this.portfolioRepository.remove(existing);
+  async findByUserIds(userIds: string[]): Promise<Portfolio[]> {
+    if (!userIds.length) return [];
+    return this.portfolioRepository.find({ where: { userId: In(userIds) } });
+  }
 
-            return {
-                success: true
-            };
-        } catch (error) {
-            throw error;
-        }
-    }
-    async findByUserId(userId: string) {
-        try {
-            return await this.portfolioRepository.find({ where: { userId } })
-        } catch (error) {
-            throw error;
-        }
-    }
-    async getMany(ids: string[]) {
-        return await this.portfolioRepository.find({
-            where: {
-                userId: In(ids),
-            }
-        });
-    }
-    async findByUserIds(userIds: string[]) {
-        try {
-            if (!userIds || userIds.length === 0) return [];
+  async findLatestByUserIds(userIds: string[]): Promise<Record<string, Portfolio>> {
+    if (!userIds.length) return {};
+    const items = await this.portfolioRepository.find({ where: { userId: In(userIds) }, order: { createdAt: 'DESC' } });
+    const latest: Record<string, Portfolio> = {};
+    for (const item of items) latest[item.userId] ??= item;
+    return latest;
+  }
 
-            const portfolios = await this.getMany(userIds);
+  async findAll({ page, limit }: PaginationDto) {
+    const [items, total] = await this.portfolioRepository.findAndCount({
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
-            return portfolios;
-        } catch (error) {
-            throw error;
-        }
-    }
-    async findAll({ page, limit }: {
-        page: number;
-        limit: number;
-    }) {
-        try {
-            const [items, total] = await this.portfolioRepository
-                .createQueryBuilder('portfolio')
-                .orderBy('portfolio.createdAt', 'DESC')
-                .skip((page - 1) * limit)
-                .take(limit)
-                .getManyAndCount();
+    const ids = [...new Set(items.map((item) => item.userId))];
+    const users = ids.length
+      ? await firstValueFrom(this.userClient.send<PortfolioAuthor[]>('users.getUsersByIds', { ids }))
+      : [];
+    const usersById = new Map(users.map((user) => [user.id, user]));
 
-            const ids = items.map((item) => item.userId);
-            const users = await firstValueFrom(this.userClient.send("users.getUsersByIds", { ids }));
+    return {
+      items: items.map((item) => ({ ...item, user: usersById.get(item.userId) ?? null })),
+      total,
+      page,
+      limit,
+    };
+  }
 
-            const itemsWithUsers = items.map((item) => {
-                return {
-                    ...item,
-                    user: users.find((u) => u.id === item.userId) || null
-                }
-            });
-
-            return {
-                items: itemsWithUsers,
-                total,
-                page,
-                limit,
-            };
-        } catch (error) {
-            throw error;
-        }
-    }
+  private async getOwned(id: string, userId: string) {
+    const existing = await this.portfolioRepository.findOne({ where: { id } });
+    if (!existing) throw rpcError(HttpStatus.NOT_FOUND, 'Portfolio item not found');
+    if (existing.userId !== userId) throw rpcError(HttpStatus.FORBIDDEN, 'Only the owner can change this item');
+    return existing;
+  }
 }

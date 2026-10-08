@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Notifier } from "../common/notifier";
+import { HttpStatus, Inject, Injectable, Logger } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -6,6 +7,8 @@ import { DataSource, LessThan, Repository } from "typeorm";
 import { CreateEscrowDto } from "./dto/invoice.dto";
 import { EscrowStatus, Invoice, WonDispute } from "./entities/invoice.entity";
 import { MonobankService } from "./monobank.service";
+import { TransactionType } from "../wallet/entities/wallet-transaction.entity";
+import { rpcError, WalletService } from "../wallet/wallet.service";
 
 const COMMISSION_RATE = 0.08;
 
@@ -13,13 +16,17 @@ type PollStatus = "processing" | "success" | "failure";
 
 @Injectable()
 export class InvoicesService {
+    private readonly logger = new Logger(InvoicesService.name);
+
     constructor(
         @InjectRepository(Invoice) private readonly repo: Repository<Invoice>,
         private readonly dataSource: DataSource,
         private readonly mono: MonobankService,
+        private readonly walletService: WalletService,
 
         @Inject('RABBIT_MQ_CLIENT')
         private readonly rabbitClient: ClientProxy,
+        private readonly notifier: Notifier,
     ) { }
 
     @Cron(CronExpression.EVERY_5_SECONDS)
@@ -38,17 +45,15 @@ export class InvoicesService {
                 const monoStatus = await this.mono.checkStatus(invoice.monobankInvoiceId);
                 await this.handleStatusUpdate(invoice.monobankInvoiceId, monoStatus.status);
             } catch (error) {
-                console.error(`Reconcile failed for invoice ${invoice.monobankInvoiceId}`, error);
+                this.logger.error(`Reconcile failed for invoice ${invoice.monobankInvoiceId}`, error);
             }
         }
     }
 
     async createEscrow(dto: CreateEscrowDto) {
-        const existing = await this.repo.findOne({
-            where: { projectId: dto.projectId, clientId: dto.clientId, freelancerId: dto.freelancerId },
-        });
-        if (existing) {
-            throw new ConflictException("Escrow for this project/client/freelancer already exists");
+        const existing = await this.repo.findOne({ where: { projectId: dto.projectId } });
+        if (existing && ![EscrowStatus.CREATED, EscrowStatus.EXPIRED].includes(existing.status)) {
+            throw rpcError(HttpStatus.CONFLICT, "Escrow for this project is already paid");
         }
         const destination = (dto.description ?? "Оплата послуги").slice(0, 458);
         const redirectUrl = `${process.env.FRONTEND_URL}/${"en"}/chats/${dto.projectId}`;
@@ -61,7 +66,7 @@ export class InvoicesService {
         );
 
         const invoice = await this.repo.save(
-            this.repo.create({
+            this.repo.merge(existing ?? this.repo.create(), {
                 monobankInvoiceId: invoiceId,
                 amount: dto.amount,
                 currencyCode: dto.currencyCode,
@@ -82,19 +87,42 @@ export class InvoicesService {
 
     async getById(id: string): Promise<Invoice> {
         const invoice = await this.repo.findOne({ where: { id } });
-        if (!invoice) throw new NotFoundException("Invoice not found");
+        if (!invoice) throw rpcError(HttpStatus.NOT_FOUND, "Invoice not found");
         return invoice;
+    }
+
+    async getForUser({ id, userId, isAdmin }: { id: string; userId: string; isAdmin: boolean }): Promise<Invoice> {
+        const invoice = await this.getById(id);
+        if (!isAdmin && invoice.clientId !== userId && invoice.freelancerId !== userId) {
+            throw rpcError(HttpStatus.FORBIDDEN, "Not a party of this escrow");
+        }
+        return invoice;
+    }
+
+    async getStatusForUser({ invoiceId, userId }: { invoiceId: string; userId: string }) {
+        const invoice = await this.getByMonobankInvoiceId(invoiceId);
+        if (invoice.clientId !== userId && invoice.freelancerId !== userId) {
+            throw rpcError(HttpStatus.FORBIDDEN, "Not a party of this escrow");
+        }
+        return this.getStatus(invoiceId);
+    }
+
+    async syncFromMonobank(monobankInvoiceId: string) {
+        await this.getByMonobankInvoiceId(monobankInvoiceId);
+        const { status } = await this.mono.checkStatus(monobankInvoiceId);
+        await this.handleStatusUpdate(monobankInvoiceId, status);
+        return { success: true };
     }
 
     async getByProjectId(id: string): Promise<Invoice> {
         const invoice = await this.repo.findOne({ where: { projectId: id } });
-        if (!invoice) throw new NotFoundException("Invoice not found");
+        if (!invoice) throw rpcError(HttpStatus.NOT_FOUND, "Invoice not found");
         return invoice;
     }
 
     private async getByMonobankInvoiceId(monobankInvoiceId: string): Promise<Invoice> {
         const invoice = await this.repo.findOne({ where: { monobankInvoiceId } });
-        if (!invoice) throw new NotFoundException(`Invoice ${monobankInvoiceId} not found`);
+        if (!invoice) throw rpcError(HttpStatus.NOT_FOUND, `Invoice ${monobankInvoiceId} not found`);
         return invoice;
     }
 
@@ -118,7 +146,7 @@ export class InvoicesService {
         try {
             this.rabbitClient.emit("projects.toInProgress", { id: projectId });
         } catch (error) {
-            console.error(`Failed to notify projects.toInProgress for ${projectId}`, error);
+            this.logger.error(`Failed to notify projects.toInProgress for ${projectId}`, error);
         }
     }
     async getStatus(monobankInvoiceId: string): Promise<{ status: PollStatus; escrow?: Invoice }> {
@@ -139,23 +167,28 @@ export class InvoicesService {
     private toPollStatus(status: EscrowStatus): PollStatus {
         if (status === EscrowStatus.EXPIRED) return "failure";
         if (status === EscrowStatus.CREATED) return "processing";
-        // HELD, CAPTURED, DISPUTED, REFUNDED, PAID_OUT all mean the payment
-        // itself succeeded — the frontend only cares that funds moved.
         return "success";
+    }
+
+    async releaseByProject(projectId: string, clientId: string): Promise<Invoice> {
+        const invoice = await this.getByProjectId(projectId);
+        return this.confirmByClient(invoice.id, clientId);
     }
 
     async confirmByClient(id: string, clientId: string): Promise<Invoice> {
         const invoice = await this.getById(id);
         if (invoice.clientId !== clientId) {
-            throw new ForbiddenException("Only the client of this escrow can confirm it");
+            throw rpcError(HttpStatus.FORBIDDEN, "Only the client of this escrow can confirm it");
         }
-        if (invoice.status !== EscrowStatus.HELD) {
-            throw new BadRequestException(`Cannot confirm invoice in status ${EscrowStatus[invoice.status]}`);
+        if (invoice.status !== EscrowStatus.HELD && invoice.status !== EscrowStatus.CAPTURED) {
+            throw rpcError(HttpStatus.BAD_REQUEST, `Cannot confirm invoice in status ${EscrowStatus[invoice.status]}`);
         }
 
-        invoice.commissionAmount = Math.round(invoice.amount * COMMISSION_RATE);
-        invoice.status = EscrowStatus.CAPTURED;
-        await this.repo.save(invoice);
+        if (invoice.status === EscrowStatus.HELD) {
+            invoice.commissionAmount = Math.round(invoice.amount * COMMISSION_RATE);
+            invoice.status = EscrowStatus.CAPTURED;
+            await this.repo.save(invoice);
+        }
 
         await this.payout(invoice.id);
         return this.getById(invoice.id);
@@ -164,10 +197,10 @@ export class InvoicesService {
     async openDispute(id: string, initiatorId: string, reason: string): Promise<Invoice> {
         const invoice = await this.getById(id);
         if (![invoice.clientId, invoice.freelancerId].includes(initiatorId)) {
-            throw new ForbiddenException("Only a party of this escrow can open a dispute");
+            throw rpcError(HttpStatus.FORBIDDEN, "Only a party of this escrow can open a dispute");
         }
         if (invoice.status !== EscrowStatus.HELD) {
-            throw new BadRequestException(`Cannot dispute invoice in status ${EscrowStatus[invoice.status]}`);
+            throw rpcError(HttpStatus.BAD_REQUEST, `Cannot dispute invoice in status ${EscrowStatus[invoice.status]}`);
         }
 
         invoice.status = EscrowStatus.DISPUTED;
@@ -178,7 +211,7 @@ export class InvoicesService {
     async resolveDispute(id: string, adminId: string, decision: WonDispute, note?: string): Promise<Invoice> {
         const invoice = await this.getById(id);
         if (invoice.status !== EscrowStatus.DISPUTED) {
-            throw new BadRequestException(`Invoice is not in DISPUTED status`);
+            throw rpcError(HttpStatus.BAD_REQUEST, `Invoice is not in DISPUTED status`);
         }
 
         invoice.wonDispute = decision;
@@ -199,25 +232,73 @@ export class InvoicesService {
     }
 
     private async payout(invoiceId: string): Promise<void> {
-        await this.dataSource.transaction(async (manager) => {
+        const paid = await this.dataSource.transaction(async (manager) => {
             const invoice = await manager.getRepository(Invoice).findOne({
                 where: { id: invoiceId },
                 lock: { mode: "pessimistic_write" },
             });
-            if (!invoice) throw new NotFoundException("Invoice not found");
+            if (!invoice) throw rpcError(HttpStatus.NOT_FOUND, "Invoice not found");
             if (invoice.status !== EscrowStatus.CAPTURED) {
-                return;
+                return null;
             }
 
-            const payoutAmount = invoice.amount - invoice.commissionAmount;
-            await this.executePayout(invoice.freelancerId, payoutAmount);
+            const amountCents = invoice.amount - invoice.commissionAmount;
+            await this.walletService.credit(manager, {
+                userId: invoice.freelancerId,
+                amountCents,
+                type: TransactionType.PROJECT_PAYOUT,
+                projectId: invoice.projectId,
+            });
 
             invoice.status = EscrowStatus.PAID_OUT;
             await manager.getRepository(Invoice).save(invoice);
+            return { userId: invoice.freelancerId, amountCents };
         });
+
+        if (paid) {
+            this.notifier.notify({
+                userId: paid.userId,
+                type: "payments",
+                key: "paymentReceived",
+                params: { amount: (paid.amountCents / 100).toFixed(2) },
+                link: "/payment-data",
+            });
+        }
     }
 
-    private async executePayout(freelancerId: string, amount: number): Promise<void> {
-        throw new Error("Not implemented: integrate payout provider here");
+    async clientSpent(clientId: string) {
+        const row = await this.repo
+            .createQueryBuilder("invoice")
+            .select("COALESCE(SUM(invoice.amount), 0)", "cents")
+            .where("invoice.clientId = :clientId", { clientId })
+            .andWhere("invoice.status IN (:...statuses)", { statuses: [EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT] })
+            .getRawOne<{ cents: string }>();
+        return { spent: Number(row?.cents ?? 0) / 100 };
+    }
+
+    async stats({ from, to }: { from: string; to: string }) {
+        const earned = [EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT].map(String);
+        const paid = [EscrowStatus.HELD, EscrowStatus.DISPUTED, EscrowStatus.CAPTURED, EscrowStatus.PAID_OUT].map(String);
+        const day = `("updatedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Kyiv')::date`;
+
+        const byDay: { day: string; commission: string; volume: string }[] = await this.repo.query(
+            `SELECT to_char(${day}, 'YYYY-MM-DD') AS day, sum("commissionAmount") AS commission, sum(amount) AS volume
+             FROM invoice.invoice
+             WHERE status::text = ANY($1) AND ${day} BETWEEN $2 AND $3
+             GROUP BY 1 ORDER BY 1`,
+            [earned, from, to],
+        );
+        const [totals]: { commission: string | null; volume: string | null }[] = await this.repo.query(
+            `SELECT sum("commissionAmount") FILTER (WHERE status::text = ANY($1)) AS commission,
+                    sum(amount) FILTER (WHERE status::text = ANY($2)) AS volume
+             FROM invoice.invoice`,
+            [earned, paid],
+        );
+
+        return {
+            totalCommission: Number(totals?.commission ?? 0),
+            totalVolume: Number(totals?.volume ?? 0),
+            byDay: byDay.map((r) => ({ day: r.day, commission: Number(r.commission), volume: Number(r.volume) })),
+        };
     }
 }

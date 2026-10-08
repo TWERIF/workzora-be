@@ -10,10 +10,12 @@ interface KycItemProps {
 }
 
 const statusMap = {
-    PENDING: "secondary",
-    APPROVED: "default",
-    REJECTED: "destructive",
+    not_verified: { variant: "destructive", label: "Не верифіковано" },
+    in_progress: { variant: "secondary", label: "На перевірці" },
+    verified: { variant: "default", label: "Верифіковано" },
 } as const;
+
+const statusOf = (status: string) => statusMap[status as keyof typeof statusMap] ?? { variant: "secondary" as const, label: status };
 
 export default function KycItem({
     verification,
@@ -49,15 +51,7 @@ export default function KycItem({
                     </p>
                 </div>
 
-                <Badge
-                    variant={
-                        statusMap[
-                        verification.status as keyof typeof statusMap
-                        ]
-                    }
-                >
-                    {verification.status}
-                </Badge>
+                <Badge variant={statusOf(verification.status).variant}>{statusOf(verification.status).label}</Badge>
             </div>
         </Card>
     );

@@ -4,6 +4,7 @@ import { SenderController } from './sender.controller';
 
 @Module({
   providers: [SenderService],
-  controllers: [SenderController]
+  controllers: [SenderController],
+  exports: [SenderService],
 })
 export class SenderModule {}

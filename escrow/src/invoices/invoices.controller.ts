@@ -1,57 +1,81 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { InvoicesService } from './invoices.service';
 import {
-    ConfirmEscrowDto,
-    CreateEscrowDto,
-    MonobankWebhookEventDto,
-    OpenDisputeDto,
-    ResolveDisputeDto,
+  ClientIdDto,
+  ConfirmEscrowDto,
+  CreateEscrowDto,
+  IdDto,
+  InvoiceForUserDto,
+  InvoiceStatusDto,
+  MonobankInvoiceDto,
+  OpenDisputeDto,
+  ReleaseEscrowDto,
+  ResolveDisputeDto,
+  StatsRangeDto,
 } from './dto/invoice.dto';
+import { InvoicesService } from './invoices.service';
 
-@Controller('invoices')
+@Controller()
 export class InvoicesController {
-    constructor(
-        private readonly invoicesService: InvoicesService
-    ) { }
+  constructor(private readonly invoicesService: InvoicesService) {}
 
-    @MessagePattern('invoices.create')
-    create(@Payload() data: CreateEscrowDto) {
-        return this.invoicesService.createEscrow(data);
-    }
+  @MessagePattern('stats.earnings')
+  stats(@Payload() range: StatsRangeDto) {
+    return this.invoicesService.stats(range);
+  }
 
-    @MessagePattern('invoices.getById')
-    getById(@Payload() data: { id: string }) {
-        return this.invoicesService.getById(data.id);
-    }
+  @MessagePattern('invoices.clientSpent')
+  clientSpent(@Payload() data: ClientIdDto) {
+    return this.invoicesService.clientSpent(data.clientId);
+  }
 
-    @MessagePattern('invoices.getByProjectId')
-    getByProjectId(@Payload() data: { id: string }) {
-        return this.invoicesService.getByProjectId(data.id);
-    }
+  @MessagePattern('invoices.create')
+  create(@Payload() data: CreateEscrowDto) {
+    return this.invoicesService.createEscrow(data);
+  }
 
-    @MessagePattern('invoices.status')
-    getStatus(@Payload() data: { invoiceId: string }) {
-        return this.invoicesService.getStatus(data.invoiceId);
-    }
+  @MessagePattern('invoices.getById')
+  getById(@Payload() data: IdDto) {
+    return this.invoicesService.getById(data.id);
+  }
 
-    @MessagePattern('invoices.confirm')
-    confirm(@Payload() data: ConfirmEscrowDto) {
-        return this.invoicesService.confirmByClient(data.invoiceId, data.clientId);
-    }
+  @MessagePattern('invoices.getForUser')
+  getForUser(@Payload() data: InvoiceForUserDto) {
+    return this.invoicesService.getForUser(data);
+  }
 
-    @MessagePattern('invoices.dispute.open')
-    openDispute(@Payload() data: OpenDisputeDto) {
-        return this.invoicesService.openDispute(data.invoiceId, data.initiatorId, data.reason);
-    }
+  @MessagePattern('invoices.getByProjectId')
+  getByProjectId(@Payload() data: IdDto) {
+    return this.invoicesService.getByProjectId(data.id);
+  }
 
-    @MessagePattern('invoices.dispute.resolve')
-    resolveDispute(@Payload() data: ResolveDisputeDto) {
-        return this.invoicesService.resolveDispute(data.invoiceId, data.adminId, data.decision, data.note);
-    }
+  @MessagePattern('invoices.status')
+  getStatus(@Payload() data: InvoiceStatusDto) {
+    return this.invoicesService.getStatusForUser(data);
+  }
 
-    @MessagePattern('invoices.webhook.status')
-    handleWebhookStatus(@Payload() data: MonobankWebhookEventDto) {
-        return this.invoicesService.handleStatusUpdate(data.invoiceId, data.status);
-    }
+  @MessagePattern('invoices.confirm')
+  confirm(@Payload() data: ConfirmEscrowDto) {
+    return this.invoicesService.confirmByClient(data.invoiceId, data.clientId);
+  }
+
+  @MessagePattern('invoices.release')
+  release(@Payload() data: ReleaseEscrowDto) {
+    return this.invoicesService.releaseByProject(data.projectId, data.clientId);
+  }
+
+  @MessagePattern('invoices.dispute.open')
+  openDispute(@Payload() data: OpenDisputeDto) {
+    return this.invoicesService.openDispute(data.invoiceId, data.initiatorId, data.reason);
+  }
+
+  @MessagePattern('invoices.dispute.resolve')
+  resolveDispute(@Payload() data: ResolveDisputeDto) {
+    return this.invoicesService.resolveDispute(data.invoiceId, data.adminId, data.decision, data.note);
+  }
+
+  @MessagePattern('invoices.webhook.status')
+  handleWebhookStatus(@Payload() data: MonobankInvoiceDto) {
+    return this.invoicesService.syncFromMonobank(data.invoiceId);
+  }
 }

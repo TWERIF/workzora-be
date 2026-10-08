@@ -2,6 +2,7 @@ import { config } from 'dotenv';
 config();
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { rpcValidationPipe } from './common/rpc-validation.pipe';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 async function bootstrap() {
@@ -17,8 +18,8 @@ async function bootstrap() {
     },
   );
 
+  app.useGlobalPipes(rpcValidationPipe);
   await app.listen();
-  console.log('AUTH microservice listening...');
 }
 
 bootstrap();

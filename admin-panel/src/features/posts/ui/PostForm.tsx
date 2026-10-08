@@ -24,6 +24,14 @@ import { useParams } from "react-router-dom";
 import type { CreatePostDto } from "../model/types";
 import { useCreatePost, usePost } from "../model/usePosts";
 
+const POST_TAGS = [
+    { value: "freelance", label: "Фриланс" },
+    { value: "marketing", label: "Маркетинг" },
+    { value: "ai", label: "ШІ" },
+    { value: "telegram", label: "Telegram" },
+    { value: "case-studies", label: "Кейси" },
+];
+
 export default function PostForm() {
     const { id: postId } = useParams<{ id: string }>();
     const isEditMode = !!postId;
@@ -37,7 +45,7 @@ export default function PostForm() {
             teaser: post?.teaser || "",
             imageUrl: null,
             article: post?.article || "",
-            tag: post?.tag || ""
+            tag: post?.tag || POST_TAGS[0].value
         } as CreatePostDto,
 
         onSubmit: async ({ value }) => {
@@ -118,7 +126,7 @@ export default function PostForm() {
                                         <div className="mt-3 flex flex-col gap-2">
                                             <img
                                                 src={URL.createObjectURL(selectedFile)}
-                                                alt="Preview"
+                                                alt="Нова обкладинка"
                                                 className="max-h-48 w-auto rounded-md object-cover border shadow-sm"
                                             />
                                             <p className="text-sm text-muted-foreground">
@@ -131,7 +139,7 @@ export default function PostForm() {
                                         <div className="mt-3 flex flex-col gap-2">
                                             <img
                                                 src={post.imageUrl}
-                                                alt="Current post image"
+                                                alt="Поточна обкладинка"
                                                 className="max-h-48 w-auto rounded-md object-cover border shadow-sm opacity-70"
                                             />
                                             <p className="text-sm text-muted-foreground">
@@ -150,7 +158,29 @@ export default function PostForm() {
                         }}
                     </form.Field>
 
-                    {["title", "tag"].map((fieldName) => (
+                    <form.Field name="tag">
+                        {(field) => (
+                            <FieldGroup>
+                                <FieldLabel htmlFor="post-tag">Рубрика</FieldLabel>
+                                <Field>
+                                    <select
+                                        id="post-tag"
+                                        value={field.state.value as string}
+                                        onChange={(e) => field.handleChange(e.target.value)}
+                                        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                    >
+                                        {POST_TAGS.map((tag) => (
+                                            <option key={tag.value} value={tag.value}>
+                                                {tag.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </Field>
+                            </FieldGroup>
+                        )}
+                    </form.Field>
+
+                    {["title"].map((fieldName) => (
                         <form.Field
                             key={fieldName}
                             name={fieldName as keyof CreatePostDto}
@@ -158,7 +188,7 @@ export default function PostForm() {
                             {(field) => (
                                 <FieldGroup>
                                     <FieldLabel>
-                                        {fieldName === "title" ? "Заголовок" : "Тег"}
+                                        Заголовок
                                     </FieldLabel>
 
                                     <Field>
@@ -184,7 +214,7 @@ export default function PostForm() {
                     <form.Field name="teaser">
                         {(field) => (
                             <TipTapEditor
-                                label="teaser"
+                                label="Тизер"
                                 value={field.state.value as string}
                                 onChange={(value) => field.handleChange(value)}
                             />

@@ -1,87 +1,63 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { firstValueFrom } from 'rxjs';
 import { Repository } from 'typeorm';
-import { CreateAccountVerification, VerifyAccount } from './dto';
+import { rpcError } from '../common/rpc-validation.pipe';
+import { CreateAccountVerificationDto, PaginationDto, VerifyAccountDto } from './dto';
 import { AccoutVerification, VerificationStatus } from './entities/account-verification.entity';
 
 @Injectable()
 export class AccoutVerificationService {
-    constructor(
-        @InjectRepository(AccoutVerification)
-        private readonly accoutVerificationRepo: Repository<AccoutVerification>,
+  constructor(
+    @InjectRepository(AccoutVerification)
+    private readonly accoutVerificationRepo: Repository<AccoutVerification>,
+    @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
+  ) {}
 
-        @Inject('USER_SERVICE') private readonly userClient: ClientProxy,
-    ) { }
+  async create(body: CreateAccountVerificationDto) {
+    const existing = await this.accoutVerificationRepo.findOne({ where: { userId: body.userId } });
+    if (existing?.status === VerificationStatus.VERIFIED) {
+      throw rpcError(HttpStatus.CONFLICT, 'The account is already verified');
+    }
 
-    async create(body: CreateAccountVerification) {
-        try {
-            const accountVerification = this.accoutVerificationRepo.create({
-                ...body,
-                status: VerificationStatus.IN_PROGRESS
-            })
-            return this.accoutVerificationRepo.save(accountVerification);
-        } catch (error) {
-            throw error;
-        }
-    }
-    async updateStatus(body: VerifyAccount) {
-        try {
-            return await this.accoutVerificationRepo.update({
-                id: body.id
-            }, { status: body.status })
-        } catch (error) {
-            throw error;
-        }
-    }
-    async findAll(data: { page: number; limit: number }) {
-        try {
-            const page = Number(data.page) || 1;
-            const limit = Number(data.limit) || 10;
+    const verification = existing ?? this.accoutVerificationRepo.create({ userId: body.userId });
+    Object.assign(verification, {
+      documentUrl: body.documentUrl,
+      selfieUrl: body.selfieUrl,
+      status: VerificationStatus.IN_PROGRESS,
+    });
+    return this.accoutVerificationRepo.save(verification);
+  }
 
-            const query = this.accoutVerificationRepo
-                .createQueryBuilder('account_verification')
-                .where('account_verification.status = :status', {
-                    status: VerificationStatus.IN_PROGRESS
-                })
-                .orderBy('account_verification.createdAt', 'ASC')
-                .skip((page - 1) * limit)
-                .take(limit);
+  async updateStatus({ id, status }: VerifyAccountDto) {
+    const result = await this.accoutVerificationRepo.update({ id }, { status });
+    if (!result.affected) throw rpcError(HttpStatus.NOT_FOUND, 'Verification not found');
+    return { success: true };
+  }
 
-            const [items, total] = await query.getManyAndCount();
+  async findAll({ page = 1, limit = 10 }: PaginationDto) {
+    const [items, total] = await this.accoutVerificationRepo.findAndCount({
+      where: { status: VerificationStatus.IN_PROGRESS },
+      order: { createdAt: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
-            return {
-                items: items.map((item: AccoutVerification) => ({
-                    ...item,
-                })),
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit),
-            };
-        } catch (error) {
-            throw error;
-        }
-    }
-    async findOne(id: string) {
-        try {
-            const verification = await this.accoutVerificationRepo.findOne({ where: { id } });
-            if (!verification) throw new BadRequestException();
-            const user = await firstValueFrom(this.userClient.send("users.get", { id: verification.userId }))
-            return {
-                ...verification,
-                user
-            }
-        } catch (error) {
-            throw error;
-        }
-    }
-    async findOneByUserId(userId: string) {
-        try {
-            return await this.accoutVerificationRepo.findOne({ where: { userId } });
-        } catch (error) {
-            throw error;
-        }
-    }
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async findOne(id: string) {
+    const verification = await this.accoutVerificationRepo.findOne({ where: { id } });
+    if (!verification) throw rpcError(HttpStatus.NOT_FOUND, 'Verification not found');
+
+    const user = await firstValueFrom(this.userClient.send<unknown>('users.get', { id: verification.userId })).catch(
+      () => null,
+    );
+    return { ...verification, user };
+  }
+
+  findOneByUserId(userId: string) {
+    return this.accoutVerificationRepo.findOne({ where: { userId }, order: { createdAt: 'DESC' } });
+  }
 }

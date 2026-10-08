@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import {
   v2 as cloudinary,
   UploadApiResponse,
@@ -9,6 +9,8 @@ import 'multer';
 
 @Injectable()
 export class CloudinaryService {
+    private readonly logger = new Logger(CloudinaryService.name);
+
   constructor() {
     cloudinary.config({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -46,7 +48,7 @@ export class CloudinaryService {
           result: UploadApiResponse | undefined,
         ) => {
           if (error || !result) {
-            console.error('Cloudinary upload error:', error);
+            this.logger.error('Cloudinary upload error:', error);
             return reject(
               new InternalServerErrorException(
                 'Помилка завантаження файлу в чат',
@@ -72,7 +74,7 @@ export class CloudinaryService {
           result: UploadApiResponse | undefined,
         ) => {
           if (error || !result) {
-            console.error('Cloudinary error:', error);
+            this.logger.error('Cloudinary error:', error);
             return reject(
               new InternalServerErrorException('Помилка завантаження файлу'),
             );
@@ -96,7 +98,7 @@ export class CloudinaryService {
           result: UploadApiResponse | undefined,
         ) => {
           if (error || !result) {
-            console.error('Cloudinary error:', error);
+            this.logger.error('Cloudinary error:', error);
             return reject(
               new InternalServerErrorException('Помилка завантаження файлу'),
             );
@@ -123,7 +125,7 @@ export class CloudinaryService {
           result: UploadApiResponse | undefined,
         ) => {
           if (error || !result) {
-            console.error('Cloudinary error:', error);
+            this.logger.error('Cloudinary error:', error);
             return reject(
               new InternalServerErrorException('Помилка завантаження файлу'),
             );

@@ -2,189 +2,118 @@ import {
   Body,
   Controller,
   Get,
-  HttpException,
-  HttpStatus,
   Inject,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
-  Req,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { catchError, firstValueFrom } from 'rxjs';
+import { ApiBody, ApiConsumes, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Roles, RolesGuard } from '../auth/guards/role-guard';
 import { CloudinaryService } from '../cloudinary/cloudinary/cloudinary.service';
+import { CurrentUser } from '../common/auth-user';
+import type { AuthUser } from '../common/auth-user';
+import { assertFile, DOCUMENT_UPLOAD_LIMIT } from '../common/files';
+import { PaginationQueryDto } from '../common/pagination.dto';
+import { sendRpc } from '../common/rpc';
+import { ChatAccessService } from './chat-access.service';
+import { MessagesQueryDto, SendMessageDto } from './dto';
 
+interface ChatMessage {
+  senderId: string | null;
+}
+
+interface ChatUser {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
+@ApiTags('chat')
+@ApiCookieAuth()
 @Controller('chat')
+@UseGuards(RolesGuard)
 export class ChatController {
   constructor(
     @Inject('PROJECT_SERVICE') private readonly projectClient: ClientProxy,
-    private readonly cloudinaryService: CloudinaryService,
-
     @Inject('USERS_SERVICE') private readonly usersClient: ClientProxy,
-  ) { }
+    private readonly cloudinaryService: CloudinaryService,
+    private readonly chatAccess: ChatAccessService,
+  ) {}
+
   @Get()
-  async getChats(
-    @Req() req,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 10;
+  @ApiOperation({ summary: 'Own chats' })
+  getChats(@CurrentUser() user: AuthUser, @Query() query: PaginationQueryDto) {
+    return sendRpc(this.projectClient, 'chat.getChats', { userId: user.id, ...query });
+  }
 
-    const userId = req.user.id;
-
-    return await firstValueFrom(
-      this.projectClient
-        .send('chat.getChats', { userId, page: pageNum, limit: limitNum })
-        .pipe(
-          catchError((error: unknown) => {
-            throw new HttpException(
-              'Chat service unavailable',
-              HttpStatus.SERVICE_UNAVAILABLE,
-            );
-          }),
-        ),
-    );
+  @Get('all')
+  @Roles('admin')
+  @ApiOperation({ summary: 'All chats (admin)' })
+  getAllChats(@Query() query: PaginationQueryDto) {
+    return sendRpc(this.projectClient, 'chat.getAllChats', query);
   }
 
   @Get('project/:projectId')
-  async findOrCreateChat(@Param('projectId') projectId: string) {
-    return await firstValueFrom(
-      this.projectClient.send('chat.findOrCreate', { projectId }).pipe(
-        catchError((error: unknown) => {
-          throw new HttpException(
-            'Chat service unavailable',
-            HttpStatus.SERVICE_UNAVAILABLE,
-          );
-        }),
-      ),
-    );
+  @ApiOperation({ summary: 'Chat of a project, created on first access' })
+  async findOrCreateChat(@Param('projectId', ParseUUIDPipe) projectId: string, @CurrentUser() user: AuthUser) {
+    await this.chatAccess.assertParticipant(user, { projectId });
+    return sendRpc(this.projectClient, 'chat.findOrCreate', { projectId });
   }
 
   @Get(':chatId/messages')
+  @ApiOperation({ summary: 'Latest messages of a chat' })
   async getMessages(
-    @Param('chatId') chatId: string,
-    @Query('amount') amount?: string,
+    @Param('chatId', ParseUUIDPipe) chatId: string,
+    @Query() query: MessagesQueryDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    const limit = amount ? parseInt(amount, 10) : 30;
+    await this.chatAccess.assertParticipant(user, { chatId });
+    const messages = await sendRpc<ChatMessage[]>(this.projectClient, 'chat.getMessages', { chatId, amount: query.amount });
+    if (!messages.length) return [];
 
-    const messages = await firstValueFrom(
-      this.projectClient
-        .send<any[]>('chat.getMessages', { chatId, amount: limit })
-        .pipe(
-          catchError((error: unknown) => {
-            throw new HttpException(
-              'Chat service unavailable',
-              HttpStatus.SERVICE_UNAVAILABLE,
-            );
-          }),
-        ),
-    );
+    const senderIds = [...new Set(messages.map((message) => message.senderId).filter((id): id is string => !!id))];
+    const senders = senderIds.length
+      ? await sendRpc<ChatUser[]>(this.usersClient, 'users.getUsersByIds', { ids: senderIds }).catch(() => [])
+      : [];
+    const sendersById = new Map(senders.map((sender) => [sender.id, sender]));
 
-    if (!messages || messages.length === 0) {
-      return [];
-    }
-
-    const uniqueSenderIds = [...new Set(
-      messages
-        .map((m) => m.senderId)
-        .filter((id): id is string => typeof id === 'string')
-    )];
-
-    const usersMap = new Map<string, any>();
-
-    if (uniqueSenderIds.length > 0) {
-      try {
-        const users = await firstValueFrom(
-          this.usersClient.send('users.getUsersByIds', { ids: uniqueSenderIds })
-        );
-        users.forEach(u => usersMap.set(u.id, u));
-      } catch (error) {
-        console.error('Failed to fetch users for messages:', error);
-      }
-    }
-
-    return messages.map((item) => {
-      const sender = item.senderId ? usersMap.get(item.senderId) : null;
-
-      return {
-        ...item,
-        senderName: sender ? sender.name : 'Workzora',
-        senderAvatar: sender ? sender.avatarUrl : null,
-      };
+    return messages.map((message) => {
+      const sender = message.senderId ? sendersById.get(message.senderId) : undefined;
+      return { ...message, senderName: sender?.name ?? 'Workzora', senderAvatar: sender?.avatarUrl ?? null };
     });
   }
 
   @Post(':chatId/messages')
-  async saveMessage(@Param('chatId') chatId: string, @Body() payload: any) {
-    return await firstValueFrom(
-      this.projectClient.send('chat.saveMessage', { chatId, payload }).pipe(
-        catchError((error: unknown) => {
-          throw new HttpException(
-            'Chat service unavailable',
-            HttpStatus.SERVICE_UNAVAILABLE,
-          );
-        }),
-      ),
-    );
+  @ApiOperation({ summary: 'Send a message' })
+  async saveMessage(
+    @Param('chatId', ParseUUIDPipe) chatId: string,
+    @Body() body: SendMessageDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.chatAccess.assertCanSend(user, chatId);
+    return sendRpc(this.projectClient, 'chat.saveMessage', { ...body, chatId, senderId: user.id });
   }
 
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
-      throw new HttpException('Файл не знайдено', HttpStatus.BAD_REQUEST);
-    }
-
-    try {
-      const fileUrl = await this.cloudinaryService.uploadChatAttachment(file);
-      return { fileUrl };
-    } catch (error) {
-      throw new HttpException(
-        'Помилка завантаження файлу',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOperation({ summary: 'Upload a chat attachment' })
+  @UseInterceptors(FileInterceptor('file', { limits: DOCUMENT_UPLOAD_LIMIT }))
+  async uploadFile(@UploadedFile() file: Express.Multer.File | undefined) {
+    const fileUrl = await this.cloudinaryService.uploadChatAttachment(assertFile(file));
+    return { fileUrl };
   }
+
   @Patch('messages/:messageId/read')
-  async markAsRead(@Param('messageId') messageId: string) {
-    return await firstValueFrom(
-      this.projectClient.send('chat.markAsRead', { messageId }).pipe(
-        catchError((error: unknown) => {
-          throw new HttpException(
-            'Chat service unavailable',
-            HttpStatus.SERVICE_UNAVAILABLE,
-          );
-        }),
-      ),
-    );
-  }
-  @Get('all')
-  async getAllChats(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 10;
-
-    return await firstValueFrom(
-      this.projectClient
-        .send('chat.getAllChats', {
-          page: pageNum,
-          limit: limitNum,
-        })
-        .pipe(
-          catchError(() => {
-            throw new HttpException(
-              'Chat service unavailable',
-              HttpStatus.SERVICE_UNAVAILABLE,
-            );
-          }),
-        ),
-    );
+  @ApiOperation({ summary: 'Mark a received message as read' })
+  markAsRead(@Param('messageId', ParseUUIDPipe) messageId: string, @CurrentUser() user: AuthUser) {
+    return sendRpc(this.projectClient, 'chat.markAsRead', { messageId, userId: user.id });
   }
 }

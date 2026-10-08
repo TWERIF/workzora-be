@@ -23,6 +23,12 @@ export class Portfolio {
     @Column()
     imageUrl!: string;
 
+    @Column('simple-array', { default: '' })
+    tags!: string[];
+
+    @Column({ type: 'int', default: 0 })
+    views!: number;
+
     @CreateDateColumn()
     createdAt!: Date;
 }

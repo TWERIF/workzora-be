@@ -1,53 +1,233 @@
-import { Id } from "../../categories/dto";
-import { ProjectStatus } from "../entities/project.entity";
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsIn,
+  IsISO8601,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
+import { ProjectStatus } from '../entities/project.entity';
 
-export interface CreateProjectDto {
-  title: string;
-  description: string;
-  categories: string[];
+export class IdDto {
+  @IsUUID()
+  id!: string;
+}
+
+export class IdsDto {
+  @IsArray()
+  @IsUUID('all', { each: true })
+  ids!: string[];
+}
+
+export class UserIdDto {
+  @IsUUID()
+  userId!: string;
+}
+
+export class UserPairDto extends UserIdDto {
+  @IsUUID()
+  otherId!: string;
+}
+
+export class StatsRangeDto {
+  @IsISO8601()
+  from!: string;
+
+  @IsISO8601()
+  to!: string;
+}
+
+export class PaginationDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit: number = 10;
+}
+
+export class CreateProjectDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  title!: string;
+
+  @IsString()
+  @MaxLength(20000)
+  description!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @IsUUID('all', { each: true })
+  categories!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   tags?: string[];
-  clientId: string;
-  price: number;
+
+  @IsUUID()
+  clientId!: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  price!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isUrgent?: boolean;
 }
 
-export interface Project {
-  id: string;
-  title: string;
-  description: string;
-  categories: any[];
-  tags: string[];
-  price: number;
-  clientId: string;
-  client: any;
-  freelancerId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  views: number;
-  status: ProjectStatus;
-  clientName: string;
-  proposalsCount?: number;
-}
+export class UpdateProjectDto {
+  @IsUUID()
+  id!: string;
 
-export interface UpdateProjectDto extends Partial<Project> { }
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  title?: string;
 
-export interface FindProjectsDto extends Pagination {
-  search?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(20000)
+  description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @IsUUID('all', { each: true })
   categories?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   tags?: string[];
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  price?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isUrgent?: boolean;
+}
+
+export class FeaturedDto {
+  @IsUUID()
+  id!: string;
+
+  @IsBoolean()
+  isFeatured!: boolean;
+}
+
+export class FindProjectsDto extends PaginationDto {
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('all', { each: true })
+  categories?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
   minPrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
   maxPrice?: number;
+
+  @IsOptional()
+  @IsIn(['new', 'top'])
+  sort?: 'new' | 'top';
 }
 
-export interface Pagination {
-  page: number;
-  limit: number
+export class AdminProjectsDto extends FindProjectsDto {
+  @IsOptional()
+  @IsEnum(ProjectStatus)
+  status?: ProjectStatus;
 }
 
-export interface MyProjectsDto extends Pagination {
-  userId: string;
-  status: string;
+export class MyProjectsDto extends PaginationDto {
+  @IsUUID()
+  userId!: string;
+
+  @IsOptional()
+  @IsEnum(ProjectStatus)
+  status?: ProjectStatus;
+
+  @IsOptional()
+  @IsIn(['deals'])
+  group?: 'deals';
 }
 
-export interface AwaitingPaymentDto extends Id {
-  freelancerId: string;
+export class AwaitingPaymentDto extends IdDto {
+  @IsUUID()
+  freelancerId!: string;
+
+  @IsUUID()
+  clientId!: string;
+}
+
+export class CompleteProjectDto extends IdDto {
+  @IsUUID()
+  clientId!: string;
+}
+
+export class PaymentsListDto extends PaginationDto {
+  @IsUUID()
+  id!: string;
+
+  @IsString()
+  role!: string;
+}
+
+export class ClientProjectsDto {
+  @IsUUID()
+  clientId!: string;
+
+  @IsIn(['active', 'completed'])
+  status!: 'active' | 'completed';
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit = 10;
 }
