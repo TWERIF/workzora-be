@@ -28,7 +28,6 @@ jobs:
             exit 1
           fi
           printf '%s\n' "$ROOT_ENV" > .env
-          chmod 600 .env
 
       - name: Copy files to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -54,7 +53,6 @@ jobs:
           script: |
             set -e
             cd /var/www/workzora-be
-            chmod 600 .env
             if docker compose version >/dev/null 2>&1; then
               DC="docker compose"
             else
