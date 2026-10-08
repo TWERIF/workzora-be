@@ -93,6 +93,8 @@ const FONT = "Poppins, 'Segoe UI', Arial, sans-serif";
 
 const siteUrl = () => (process.env.FRONTEND_URL || 'https://workzora.com').replace(/\/+$/, '');
 
+const assetsUrl = () => (process.env.EMAIL_ASSETS_URL || siteUrl()).replace(/\/+$/, '');
+
 const codeCells = (code: string) =>
     code
         .split('')
@@ -120,7 +122,7 @@ export const renderCodeEmail = (kind: CodeEmailKind, locale: EmailLocale, code: 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;font-family:${FONT};color:#333333">
 <tr><td align="center" style="padding:24px 12px 36px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:528px">
-<tr><td align="center" style="padding-bottom:24px"><a href="${site}"><img src="${site}/images/email/logo.png" width="110" height="68" alt="WorkZora" style="display:block;border:0"></a></td></tr>
+<tr><td align="center" style="padding-bottom:24px"><a href="${site}"><img src="${assetsUrl()}/images/email/logo.png" width="110" height="68" alt="WorkZora" style="display:block;border:0"></a></td></tr>
 <tr><td class="wz-pad" style="background:#ffffff;border-radius:24px;padding:24px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr><td>
@@ -130,7 +132,7 @@ export const renderCodeEmail = (kind: CodeEmailKind, locale: EmailLocale, code: 
 <h1 class="wz-title" style="margin:0 0 12px;font-size:32px;line-height:1.3;font-weight:700;color:#333333">${text.title}</h1>
 <p style="margin:0;font-size:13px;line-height:1.5;color:#333333">${text.intro}</p>
 </td>
-<td class="wz-art" width="170" valign="middle" align="right"><img src="${site}/images/email/envelope.png" width="170" alt="" style="display:block;border:0;max-width:170px;height:auto"></td>
+<td class="wz-art" width="170" valign="middle" align="right"><img src="${assetsUrl()}/images/email/envelope.png" width="170" alt="" style="display:block;border:0;max-width:170px;height:auto"></td>
 </tr></table>
 </td></tr>
 <tr><td style="padding-top:12px">
