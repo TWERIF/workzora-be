@@ -1,37 +1,65 @@
-name: Deploy Backend to VPS (PM2)
+\name: Deploy backend to VPS
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Write .env from secret
+        env:
+          ROOT_ENV: ${{ secrets.ROOT_ENV }}
+        run: |
+          if [ -z "$ROOT_ENV" ]; then
+            echo "ROOT_ENV secret is empty" >&2
+            exit 1
+          fi
+          printf '%s\n' "$ROOT_ENV" > .env
+          chmod 600 .env
+
       - name: Copy files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT || '22' }}
           username: root
-          key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.VPS_PASSWORD }}
           source: "."
           target: "/var/www/workzora-be"
+          timeout: 120s
+          command_timeout: 30m
 
-      - name: Deploy via Docker Compose
-              uses: appleboy/ssh-action@v1.0.3
-              with:
-                host: ${{ secrets.VPS_HOST }}
-                username: root
-                key: ${{ secrets.VPS_SSH_KEY }}
-                script: |
-                  cd /var/www/workzora-be
-                  
-                  echo "${{ secrets.ROOT_ENV }}" > .env
-                  
-                  docker-compose down
-                  docker-compose up -d --build
+      - name: Build and restart containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT || '22' }}
+          username: root
+          password: ${{ secrets.VPS_PASSWORD }}
+          timeout: 120s
+          command_timeout: 50m
+          script: |
+            set -e
+            cd /var/www/workzora-be
+            chmod 600 .env
+            if docker compose version >/dev/null 2>&1; then
+              DC="docker compose"
+            else
+              DC="docker-compose"
+            fi
+            $DC up -d --build --remove-orphans
+            docker image prune -f
+            $DC ps
