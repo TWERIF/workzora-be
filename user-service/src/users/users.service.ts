@@ -36,7 +36,7 @@ export interface FreelancersQuery {
   categoryIds?: string[];
 }
 
-export const ROLE_SWITCH_DAYS = 7;
+export const ROLE_SWITCH_DAYS = Number(process.env.ROLE_SWITCH_DAYS ?? 0);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
@@ -168,7 +168,7 @@ export class UsersService implements OnModuleInit {
     if (activeDeals > 0) {
       throw new RpcException({ statusCode: 409, message: 'Finish your active projects before switching the account type' });
     }
-    if (user.roleSwitchedAt) {
+    if (ROLE_SWITCH_DAYS > 0 && user.roleSwitchedAt) {
       const nextSwitchAt = new Date(user.roleSwitchedAt.getTime() + ROLE_SWITCH_DAYS * DAY_MS);
       if (nextSwitchAt > new Date()) {
         throw new RpcException({ statusCode: 429, message: `The account type can be switched again after ${nextSwitchAt.toISOString()}` });
