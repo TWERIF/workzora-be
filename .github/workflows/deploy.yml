@@ -61,10 +61,14 @@ jobs:
             else
               DC="docker-compose"
             fi
+            docker image prune -f
+            docker builder prune -f --filter until=168h
+            df -h /
             for service in $($DC config --services); do
               echo "=== Building $service"
               $DC build "$service"
             done
             $DC up -d --remove-orphans
             docker image prune -f
+            df -h /
             $DC ps
