@@ -21,14 +21,17 @@ export const findAllChats = async ({
 export const findChatMessages = async ({
     chatId,
     amount = 100,
+    before,
 }: {
     chatId: string;
     amount?: number;
+    before?: string;
 }): Promise<ChatMessage[]> => {
     return (
         await api.get(`/chat/${chatId}/messages`, {
             params: {
                 amount,
+                before,
             },
         })
     ).data;

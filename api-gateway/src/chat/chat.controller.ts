@@ -75,7 +75,11 @@ export class ChatController {
     @CurrentUser() user: AuthUser,
   ) {
     await this.chatAccess.assertParticipant(user, { chatId });
-    const messages = await sendRpc<ChatMessage[]>(this.projectClient, 'chat.getMessages', { chatId, amount: query.amount });
+    const messages = await sendRpc<ChatMessage[]>(this.projectClient, 'chat.getMessages', {
+      chatId,
+      amount: query.amount,
+      before: query.before,
+    });
     if (!messages.length) return [];
 
     const senderIds = [...new Set(messages.map((message) => message.senderId).filter((id): id is string => !!id))];

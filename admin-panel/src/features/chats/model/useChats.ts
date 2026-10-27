@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { findAllChats, findChatMessages } from "./api";
+
+const MESSAGES_PAGE_SIZE = 100;
 
 export const CHAT_ADMIN_KEYS = {
     all: ["admin-chats"] as const,
@@ -15,15 +17,8 @@ export const CHAT_ADMIN_KEYS = {
     messages: () =>
         [...CHAT_ADMIN_KEYS.all, "messages"] as const,
 
-    messageList: (
-        chatId: string,
-        amount: number,
-    ) =>
-        [
-            ...CHAT_ADMIN_KEYS.messages(),
-            chatId,
-            amount,
-        ] as const,
+    messageList: (chatId: string) =>
+        [...CHAT_ADMIN_KEYS.messages(), chatId] as const,
 };
 
 export const useAdminChats = (
@@ -43,20 +38,21 @@ export const useAdminChats = (
     });
 };
 
-export const useAdminChatMessages = (
-    chatId?: string,
-    amount = 100,
-) => {
-    return useQuery({
-        queryKey: CHAT_ADMIN_KEYS.messageList(
-            chatId || "",
-            amount,
-        ),
-        queryFn: () =>
+export const useAdminChatMessages = (chatId?: string) => {
+    return useInfiniteQuery({
+        queryKey: CHAT_ADMIN_KEYS.messageList(chatId || ""),
+        queryFn: ({ pageParam }) =>
             findChatMessages({
                 chatId: chatId!,
-                amount,
+                amount: MESSAGES_PAGE_SIZE,
+                before: pageParam,
             }),
+        initialPageParam: undefined as string | undefined,
+        getNextPageParam: (lastPage) =>
+            lastPage.length < MESSAGES_PAGE_SIZE
+                ? undefined
+                : lastPage[0]?.createdAt,
+        select: (data) => [...data.pages].reverse().flat(),
         enabled: !!chatId,
         retry: false
     });

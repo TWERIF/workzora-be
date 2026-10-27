@@ -39,7 +39,7 @@ export default function ChatList({
         Всього чатів: {total}
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 flex flex-col gap-2">
           {chats.map((chat) => (
             <ChatItem

@@ -3,7 +3,7 @@ import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { firstValueFrom } from 'rxjs';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, LessThan, Repository } from 'typeorm';
 import { Project } from '../projects/entities/project.entity';
 import { ChatAccessDto, ChatListDto, GetMessagesDto, MarkAsReadDto, SaveMessageDto } from './dto/save-message-dto';
 import { ChatRoom } from './entities/chatRoom.entity';
@@ -141,8 +141,9 @@ export class ChatService {
     return saved;
   }
 
-  async getMessages({ chatId, amount = 30 }: GetMessagesDto) {
-    const messages = await this.messageRepo.find({ where: { chatId }, take: amount, order: { createdAt: 'DESC' } });
+  async getMessages({ chatId, amount = 30, before }: GetMessagesDto) {
+    const where = before ? { chatId, createdAt: LessThan(new Date(before)) } : { chatId };
+    const messages = await this.messageRepo.find({ where, take: amount, order: { createdAt: 'DESC' } });
     return messages.reverse();
   }
 

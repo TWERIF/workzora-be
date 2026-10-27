@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min } from 'class-validator';
 
 export class MessagesQueryDto {
   @ApiPropertyOptional({ default: 30 })
@@ -10,6 +10,11 @@ export class MessagesQueryDto {
   @Min(1)
   @Max(200)
   amount: number = 30;
+
+  @ApiPropertyOptional({ description: 'Messages older than this date' })
+  @IsOptional()
+  @IsDateString()
+  before?: string;
 }
 
 export class SendMessageDto {

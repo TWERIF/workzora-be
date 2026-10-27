@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, IsUrl, IsUUID, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IsDateString, IsInt, IsOptional, IsString, IsUrl, IsUUID, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
 export class ProjectIdDto {
   @IsUUID()
@@ -42,6 +42,10 @@ export class GetMessagesDto {
   @Min(1)
   @Max(200)
   amount?: number;
+
+  @IsOptional()
+  @IsDateString()
+  before?: string;
 }
 
 export class MarkAsReadDto {
