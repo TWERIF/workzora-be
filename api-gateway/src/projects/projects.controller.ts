@@ -134,8 +134,8 @@ export class ProjectsController {
     return sendRpc(this.projectClient, 'projects.delete', { id });
   }
 
+  @Public()
   @Get(':id')
-  @ApiCookieAuth()
   @ApiOperation({ summary: 'Project with its client' })
   async getOne(@Param('id', ParseUUIDPipe) id: string) {
     const project = await sendRpc<ProjectRecord | null>(this.projectClient, 'projects.findOneProject', { id });
