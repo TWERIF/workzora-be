@@ -30,7 +30,18 @@ export class StatsController {
     @Inject('INVOICES_SERVICE') private readonly invoicesClient: ClientProxy,
   ) {}
 
-    @Public()
+  @Public()
+  @Get('public')
+  @ApiOperation({ summary: 'Public site counters' })
+  async publicCounts() {
+    const [users, projects] = await Promise.all([
+      sendRpc<{ freelancers: number; clients: number }>(this.userClient, 'stats.publicUsers'),
+      sendRpc<{ projects: number; activeProjects: number; categories: number }>(this.projectClient, 'stats.publicProjects'),
+    ]);
+    return { ...users, users: users.freelancers + users.clients, ...projects };
+  }
+
+  @Public()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 120, ttl: 60_000 } })
   @Post('visit')

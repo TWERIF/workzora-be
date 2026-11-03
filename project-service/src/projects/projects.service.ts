@@ -412,6 +412,15 @@ export class ProjectsService {
     };
   }
 
+  async publicCounts() {
+    const [projects, activeProjects, categories] = await Promise.all([
+      this.projectRepository.count(),
+      this.projectRepository.count({ where: { status: ProjectStatus.OPEN } }),
+      this.categoryRepository.count(),
+    ]);
+    return { projects, activeProjects, categories };
+  }
+
   async stats({ from, to }: { from: string; to: string }) {
     const byDay: { day: string; count: string }[] = await this.projectRepository.query(
       `SELECT to_char(("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Kyiv')::date, 'YYYY-MM-DD') AS day, count(*) AS count

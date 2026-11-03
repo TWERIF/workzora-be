@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UserRole } from '../types';
 import { User } from '../users/entities/user.entity';
 import { DailyVisit } from './entities/daily-visit.entity';
 
@@ -55,5 +56,13 @@ export class StatsService {
       byRole: Object.fromEntries(byRole.map((r) => [r.role, Number(r.count)])),
       byDay: byDay.map((r) => ({ day: r.day, count: Number(r.count) })),
     };
+  }
+
+  async publicCounts() {
+    const [freelancers, clients] = await Promise.all([
+      this.users.count({ where: { role: UserRole.FREELANCER } }),
+      this.users.count({ where: { role: UserRole.CLIENT } }),
+    ]);
+    return { freelancers, clients };
   }
 }

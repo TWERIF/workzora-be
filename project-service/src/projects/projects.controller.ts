@@ -17,6 +17,11 @@ export class ProjectsController {
     return this.projectsService.stats(range);
   }
 
+  @MessagePattern('stats.publicProjects')
+  publicStats() {
+    return this.projectsService.publicCounts();
+  }
+
   @MessagePattern('projects.userStats')
   userStats(@Payload() data: UserIdDto) {
     return this.projectsService.userStats(data);

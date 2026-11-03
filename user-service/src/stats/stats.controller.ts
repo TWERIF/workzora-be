@@ -21,4 +21,9 @@ export class StatsController {
   users(@Payload() range: StatsRangeDto) {
     return this.statsService.userStats(range);
   }
+
+  @MessagePattern('stats.publicUsers')
+  publicUsers() {
+    return this.statsService.publicCounts();
+  }
 }
